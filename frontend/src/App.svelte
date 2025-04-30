@@ -1,71 +1,61 @@
 <script lang="ts">
-  import { CalculatePension } from '../wailsjs/go/main/App.js';
-  let system = $state("FERS");
-  let high3Salary = $state(0);
-  let yearsOfService = $state(0);
-  let ageAtRetirement = $state(0);
-  let pensionResult = $state<any>(null);
-  let error = $state("");
+  import ScenarioSidebar from './components/ScenarioSidebar.svelte';
+  import ScenarioTabs from './components/ScenarioTabs.svelte';
+  import CompareView from './components/CompareView.svelte';
+  import type { Scenario, ScenarioData } from './types/scenario.js';
 
-  function validateInputs() {
-    if (high3Salary <= 0 || yearsOfService < 0 || ageAtRetirement <= 0) {
-      error = "Please enter valid positive values for all fields.";
-      return false;
-    }
-    error = "";
-    return true;
+  function selectScenario(id: number): void { selectedScenarioId = id; compareScenarioId = null; }
+  function selectCompare(id: number): void { compareScenarioId = id; }
+
+  let scenarios: Scenario[] = [
+    { id: 1, name: "Scenario A", data: {} },
+    { id: 2, name: "Scenario B", data: {} }
+  ];
+  let selectedScenarioId: number | null = 1;
+  let compareScenarioId: number | null = null;
+
+  function addScenario(): void {
+    const id = Math.max(...scenarios.map(s => s.id)) + 1;
+    scenarios = [...scenarios, { id, name: `Scenario ${String.fromCharCode(64 + id)}`, data: {} }];
+    selectedScenarioId = id;
+    compareScenarioId = null;
+  }
+  function duplicateScenario(id: number): void {
+    const orig = scenarios.find(s => s.id === id);
+    if (!orig) return;
+    const newId = Math.max(...scenarios.map(s => s.id)) + 1;
+    scenarios = [...scenarios, { id: newId, name: orig.name + " Copy", data: { ...orig.data } }];
+  }
+  function deleteScenario(id: number): void {
+    scenarios = scenarios.filter(s => s.id !== id);
+    if (selectedScenarioId === id) selectedScenarioId = scenarios[0]?.id || null;
+    if (compareScenarioId === id) compareScenarioId = null;
   }
 
-  function calculatePension() {
-    if (!validateInputs()) return;
-    CalculatePension({
-      System: system,
-      High3Salary: high3Salary,
-      YearsOfService: yearsOfService,
-      AgeAtRetirement: ageAtRetirement
-    }).then(result => {
-      pensionResult = result;
-    });
-  }
+  let selectedScenario: Scenario | undefined;
+  let compareScenario: Scenario | undefined;
+  $: selectedScenario = scenarios.find(s => s.id === selectedScenarioId);
+  $: compareScenario = compareScenarioId ? scenarios.find(s => s.id === compareScenarioId) : undefined;
 </script>
 
-<main class="min-h-screen flex items-center justify-center bg-gray-900">
-  <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
-    <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Federal Pension Calculator</h1>
-    <form class="space-y-4" on:submit|preventDefault={calculatePension}>
-      <div>
-        <label class="block text-gray-700 font-medium mb-1" for="system">System</label>
-        <select bind:value={system} id="system" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="FERS">FERS</option>
-          <option value="CSRS">CSRS</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-gray-700 font-medium mb-1" for="high3Salary">High 3 Salary</label>
-        <input autocomplete="off" bind:value={high3Salary} id="high3Salary" type="number" min="0" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
-      <div>
-        <label class="block text-gray-700 font-medium mb-1" for="yearsOfService">Years of Service</label>
-        <input autocomplete="off" bind:value={yearsOfService} id="yearsOfService" type="number" min="0" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
-      <div>
-        <label class="block text-gray-700 font-medium mb-1" for="ageAtRetirement">Age at Retirement</label>
-        <input autocomplete="off" bind:value={ageAtRetirement} id="ageAtRetirement" type="number" min="0" class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      </div>
-      {#if error}
-        <div class="text-red-600 text-sm">{error}</div>
-      {/if}
-      <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition">Calculate Pension</button>
-    </form>
-    {#if pensionResult}
-      <div class="mt-6 bg-blue-50 rounded p-4 text-gray-800">
-        <h2 class="font-semibold text-lg mb-2">Results</h2>
-        <div><span class="font-medium">Annual Pension:</span> {pensionResult.annualPension?.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</div>
-        <div><span class="font-medium">Monthly Pension:</span> {pensionResult.monthlyPension?.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}</div>
-        {#if pensionResult.notes}
-          <div class="mt-2 text-sm text-gray-600 whitespace-pre-line">{pensionResult.notes}</div>
-        {/if}
-      </div>
+<div class="flex min-h-screen bg-gray-900">
+  <ScenarioSidebar
+    {scenarios}
+    {selectedScenarioId}
+    {compareScenarioId}
+    on:add={addScenario}
+    on:duplicate={e => duplicateScenario(e.detail)}
+    on:delete={e => deleteScenario(e.detail)}
+    on:select={e => selectScenario(e.detail)}
+    on:compare={e => selectCompare(e.detail)}
+  />
+  <main class="flex-1 p-6">
+    {#if compareScenario}
+      <CompareView {selectedScenario} {compareScenario} />
+    {:else if selectedScenario}
+      <ScenarioTabs bind:scenario={selectedScenario} />
+    {:else}
+      <div class="text-white">No scenarios defined.</div>
     {/if}
-  </div>
-</main>
+  </main>
+</div>

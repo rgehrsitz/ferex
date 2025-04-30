@@ -45,7 +45,7 @@ _Coming soon_
 1. Clone the repository:
 
    ```
-   git clone https://github.com/yourusername/ferex.git
+   git clone https://github.com/rgehrsitz/ferex.git
    cd ferex
    ```
 
@@ -125,4 +125,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Contact
 
-Project Link: [https://github.com/yourusername/ferex](https://github.com/yourusername/ferex)
+Project Link: [https://github.com/rgehrsitz/ferex](https://github.com/rgehrsitz/ferex)
