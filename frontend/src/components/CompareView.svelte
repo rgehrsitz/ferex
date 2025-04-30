@@ -12,7 +12,7 @@
     <p>[Inputs/results for this scenario]</p>
   </div>
 </div>
-<div class="mt-4 bg-white p-4 rounded shadow">
+<div class="mt-4 bg-white dark:bg-gray-800 p-4 rounded shadow">
   <h4 class="font-bold mb-2">Comparison Visualizations</h4>
   <p>[Charts/graphs will go here]</p>
 </div>

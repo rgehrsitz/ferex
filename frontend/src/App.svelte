@@ -39,7 +39,7 @@
   $: compareScenario = compareScenarioId ? scenarios.find(s => s.id === compareScenarioId) : undefined;
 </script>
 
-<div class="min-h-screen bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+<div class="min-h-screen bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100" id="main-container">
   <Header />
   <div class="flex">
     <ScenarioSidebar

@@ -4,25 +4,42 @@
 
   // On mount, check localStorage or system preference
   onMount(() => {
+    console.log('[DarkMode] onMount');
     if (localStorage.getItem('darkMode')) {
       darkMode = localStorage.getItem('darkMode') === 'true';
     } else {
       darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     updateHtmlClass();
+    setTimeout(() => {
+      updateHtmlClass();
+      console.log('[DarkMode] Forced update after mount', darkMode);
+    }, 100);
   });
 
   function toggleDarkMode() {
     darkMode = !darkMode;
+    console.log('Toggle dark mode:', darkMode);
     localStorage.setItem('darkMode', darkMode.toString());
     updateHtmlClass();
   }
 
   function updateHtmlClass() {
+    // Apply to both document.documentElement AND main-container for maximum compatibility
     if (darkMode) {
       document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
+      // Also apply to main container as fallback (may be needed in Wails environment)
+      const mainContainer = document.getElementById('main-container');
+      if (mainContainer) mainContainer.classList.add('dark');
+      console.log('Added dark class', darkMode);
     } else {
       document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
+      // Also remove from main container
+      const mainContainer = document.getElementById('main-container');
+      if (mainContainer) mainContainer.classList.remove('dark');
+      console.log('Removed dark class', darkMode);
     }
   }
 </script>

@@ -25,7 +25,9 @@
   </div>
   {#each tabs as t}
     {#if tab === t.label}
-      <svelte:component this={t.comp} bind:data={scenario.data[t.label.replace(/ /g,'').toLowerCase()]} />
+      <div>
+        <svelte:component this={t.comp} bind:data={scenario.data[t.label.replace(/ /g,'').toLowerCase()]} />
+      </div>
     {/if}
   {/each}
 </div>
