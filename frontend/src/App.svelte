@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Header from './components/Header.svelte';
   import ScenarioSidebar from './components/ScenarioSidebar.svelte';
   import ScenarioTabs from './components/ScenarioTabs.svelte';
   import CompareView from './components/CompareView.svelte';
@@ -38,24 +39,27 @@
   $: compareScenario = compareScenarioId ? scenarios.find(s => s.id === compareScenarioId) : undefined;
 </script>
 
-<div class="flex min-h-screen bg-gray-900">
-  <ScenarioSidebar
-    {scenarios}
-    {selectedScenarioId}
-    {compareScenarioId}
-    on:add={addScenario}
-    on:duplicate={e => duplicateScenario(e.detail)}
-    on:delete={e => deleteScenario(e.detail)}
-    on:select={e => selectScenario(e.detail)}
-    on:compare={e => selectCompare(e.detail)}
-  />
-  <main class="flex-1 p-6">
-    {#if compareScenario}
-      <CompareView {selectedScenario} {compareScenario} />
-    {:else if selectedScenario}
-      <ScenarioTabs bind:scenario={selectedScenario} />
-    {:else}
-      <div class="text-white">No scenarios defined.</div>
-    {/if}
-  </main>
+<div class="min-h-screen bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <Header />
+  <div class="flex">
+    <ScenarioSidebar
+      {scenarios}
+      {selectedScenarioId}
+      {compareScenarioId}
+      on:add={addScenario}
+      on:duplicate={e => duplicateScenario(e.detail)}
+      on:delete={e => deleteScenario(e.detail)}
+      on:select={e => selectScenario(e.detail)}
+      on:compare={e => selectCompare(e.detail)}
+    />
+    <main class="flex-1 p-6">
+      {#if compareScenario}
+        <CompareView {selectedScenario} {compareScenario} />
+      {:else if selectedScenario}
+        <ScenarioTabs bind:scenario={selectedScenario} />
+      {:else}
+        <div>No scenarios defined.</div>
+      {/if}
+    </main>
+  </div>
 </div>
