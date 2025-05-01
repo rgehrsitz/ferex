@@ -46,13 +46,21 @@
 
 <header class="flex items-center justify-between px-6 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
   <div class="flex items-center gap-2">
-    <span class="font-bold text-lg text-gray-900 dark:text-gray-100">FEREX</span>
-    <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">Federal Employee Retirement Explorer</span>
+    <span class="font-bold text-lg text-primary-600 dark:text-primary-400">FEREX</span>
+    <span class="text-xs text-gray-600 dark:text-gray-300 ml-2">Federal Employee Retirement Explorer</span>
   </div>
   <div class="flex items-center gap-4">
     <!-- Placeholder for user info, notifications, etc. -->
-    <button on:click={toggleDarkMode} class="px-3 py-1 rounded bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-700 hover:bg-gray-300 dark:hover:bg-gray-700 transition">
-      {darkMode ? '🌙 Dark' : '☀️ Light'}
+    <button 
+      on:click={toggleDarkMode} 
+      class="px-3 py-1 rounded-md text-sm font-medium 
+      bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 
+      text-gray-800 dark:text-gray-200 
+      border border-gray-300 dark:border-gray-600 
+      transition-colors duration-200 flex items-center gap-1"
+    >
+      <span>{darkMode ? '🌙' : '☀️'}</span>
+      <span>{darkMode ? 'Dark' : 'Light'}</span>
     </button>
   </div>
 </header>

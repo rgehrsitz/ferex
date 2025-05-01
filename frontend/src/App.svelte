@@ -39,9 +39,9 @@
   $: compareScenario = compareScenarioId ? scenarios.find(s => s.id === compareScenarioId) : undefined;
 </script>
 
-<div class="min-h-screen bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100" id="main-container">
+<div class="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100" id="main-container">
   <Header />
-  <div class="flex">
+  <div class="flex overflow-hidden">
     <ScenarioSidebar
       {scenarios}
       {selectedScenarioId}
@@ -52,13 +52,15 @@
       on:select={e => selectScenario(e.detail)}
       on:compare={e => selectCompare(e.detail)}
     />
-    <main class="flex-1 p-6">
+    <main class="flex-1 p-6 overflow-auto">
       {#if compareScenario}
         <CompareView {selectedScenario} {compareScenario} />
       {:else if selectedScenario}
         <ScenarioTabs bind:scenario={selectedScenario} />
       {:else}
-        <div>No scenarios defined.</div>
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
+          <p class="text-gray-700 dark:text-gray-300">No scenarios defined.</p>
+        </div>
       {/if}
     </main>
   </div>
