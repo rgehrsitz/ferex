@@ -10,6 +10,8 @@
     } else {
       darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
+    // Force dark mode initially - remove this line once theme toggle works
+    darkMode = true;
     updateHtmlClass();
     setTimeout(() => {
       updateHtmlClass();
@@ -25,21 +27,44 @@
   }
 
   function updateHtmlClass() {
-    // Apply to both document.documentElement AND main-container for maximum compatibility
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-      document.body.classList.add('dark');
-      // Also apply to main container as fallback (may be needed in Wails environment)
+    try {
+      console.log('[DarkMode] Updating HTML class with darkMode =', darkMode);
+      
+      // Apply to document.documentElement
+      if (darkMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      
+      // Apply to document.body
+      if (darkMode) {
+        document.body.classList.add('dark');
+      } else {
+        document.body.classList.remove('dark');
+      }
+      
+      // Apply to main container
       const mainContainer = document.getElementById('main-container');
-      if (mainContainer) mainContainer.classList.add('dark');
-      console.log('Added dark class', darkMode);
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.body.classList.remove('dark');
-      // Also remove from main container
-      const mainContainer = document.getElementById('main-container');
-      if (mainContainer) mainContainer.classList.remove('dark');
-      console.log('Removed dark class', darkMode);
+      if (mainContainer) {
+        if (darkMode) {
+          mainContainer.classList.add('dark');
+        } else {
+          mainContainer.classList.remove('dark');
+        }
+      } else {
+        console.warn('[DarkMode] Main container not found');
+      }
+      
+      // Debug current class state
+      console.log('[DarkMode] documentElement classList:', document.documentElement.classList);
+      console.log('[DarkMode] body classList:', document.body.classList);
+      if (mainContainer) {
+        console.log('[DarkMode] mainContainer classList:', mainContainer.classList);
+      }
+      
+    } catch (error) {
+      console.error('[DarkMode] Error updating HTML class:', error);
     }
   }
 </script>
