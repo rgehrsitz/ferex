@@ -57,9 +57,7 @@
       // Call backend API
       calculationResult = await CalculateSocialSecurity(ssInput);
       
-      // Update data with calculated results
-      data.estimatedMonthlyBenefit = calculationResult.claimingMonthlyAmount;
-      
+      // Instead of updating data directly, we'll use the calculationResult in our reactive statement
       return calculationResult.claimingAnnualAmount;
     } catch (err) {
       console.error("Error calculating Social Security:", err);
@@ -70,11 +68,45 @@
     }
   }
 
+  // Track previous values to prevent infinite loops
+  let prevValues = {
+    startAge: data.startAge,
+    estimatedMonthlyBenefit: data.estimatedMonthlyBenefit,
+    birthYear: data.birthYear,
+    birthMonth: data.birthMonth,
+    ssaEstimateAt62: data.ssaEstimateAt62,
+    ssaEstimateAtFRA: data.ssaEstimateAtFRA,
+    ssaEstimateAt70: data.ssaEstimateAt70
+  };
+  
   // Trigger calculation when relevant inputs change
   $: {
-    if (data.startAge || data.estimatedMonthlyBenefit || data.birthYear || 
-        data.ssaEstimateAt62 || data.ssaEstimateAtFRA || data.ssaEstimateAt70) {
-      calculateSocialSecurity();
+    // Check if any relevant inputs have changed
+    const hasChanged = 
+      data.startAge !== prevValues.startAge ||
+      data.estimatedMonthlyBenefit !== prevValues.estimatedMonthlyBenefit ||
+      data.birthYear !== prevValues.birthYear ||
+      data.birthMonth !== prevValues.birthMonth ||
+      data.ssaEstimateAt62 !== prevValues.ssaEstimateAt62 ||
+      data.ssaEstimateAtFRA !== prevValues.ssaEstimateAtFRA ||
+      data.ssaEstimateAt70 !== prevValues.ssaEstimateAt70;
+    
+    if (hasChanged) {
+      // Update previous values
+      prevValues = {
+        startAge: data.startAge,
+        estimatedMonthlyBenefit: data.estimatedMonthlyBenefit,
+        birthYear: data.birthYear,
+        birthMonth: data.birthMonth,
+        ssaEstimateAt62: data.ssaEstimateAt62,
+        ssaEstimateAtFRA: data.ssaEstimateAtFRA,
+        ssaEstimateAt70: data.ssaEstimateAt70
+      };
+      
+      // Only calculate if there's actually a value to calculate with
+      if (data.startAge && data.birthYear) {
+        calculateSocialSecurity();
+      }
     }
   }
 

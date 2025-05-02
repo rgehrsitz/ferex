@@ -3,6 +3,10 @@
   import { CalculateRetirementProjection } from '../../wailsjs/go/main/App';
   import { main } from '../../wailsjs/go/models';
   import type { Scenario } from '../types/scenario';
+  import MonthlyIncomeChart from './charts/SimpleMontlyIncomeChart.svelte';
+  import CumulativeIncomeChart from './charts/SimpleCumulativeIncomeChart.svelte';
+  import MonthlyIncomeDeltaChart from './charts/SimpleMonthlyDeltaChart.svelte';
+  import IncomeSourceChart from './charts/SimpleIncomeSourceChart.svelte';
 
   export let selectedScenario: Scenario;
   export let compareScenario: Scenario;
@@ -17,6 +21,14 @@
   let compareNetTotal = 0;
   let netIncomeDifference = 0;
   let cumulativeDifference = 0;
+  
+  // Chart visibility controls
+  let activeCharts = {
+    monthlyIncome: true,
+    cumulativeIncome: true,
+    monthlyDelta: true,
+    incomeSource: true
+  };
   
   async function runProjections() {
     try {
@@ -245,12 +257,123 @@
       </div>
     </div>
     
-    <!-- Visualizations will go here in future enhancements -->
-    <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
-      <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Visualization</h2>
-      <p class="text-gray-600 dark:text-gray-400">
-        Chart visualizations comparing income streams, TSP balances, and tax impacts will be implemented in a future update.
-      </p>
+    <!-- Chart Visualizations -->
+    <div class="mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-200">Visualizations</h2>
+        
+        <div class="flex flex-wrap gap-2">
+          <button 
+            class="px-3 py-1 text-sm rounded border"
+            class:bg-primary-600={activeCharts.monthlyIncome} 
+            class:text-white={activeCharts.monthlyIncome}
+            class:border-primary-600={activeCharts.monthlyIncome}
+            class:bg-white={!activeCharts.monthlyIncome} 
+            class:dark:bg-gray-800={!activeCharts.monthlyIncome}
+            class:text-gray-800={!activeCharts.monthlyIncome} 
+            class:dark:text-gray-200={!activeCharts.monthlyIncome}
+            class:border-gray-300={!activeCharts.monthlyIncome}
+            class:dark:border-gray-600={!activeCharts.monthlyIncome}
+            on:click={() => activeCharts.monthlyIncome = !activeCharts.monthlyIncome}>
+            Monthly Income
+          </button>
+          
+          <button 
+            class="px-3 py-1 text-sm rounded border"
+            class:bg-primary-600={activeCharts.cumulativeIncome} 
+            class:text-white={activeCharts.cumulativeIncome}
+            class:border-primary-600={activeCharts.cumulativeIncome}
+            class:bg-white={!activeCharts.cumulativeIncome} 
+            class:dark:bg-gray-800={!activeCharts.cumulativeIncome}
+            class:text-gray-800={!activeCharts.cumulativeIncome} 
+            class:dark:text-gray-200={!activeCharts.cumulativeIncome}
+            class:border-gray-300={!activeCharts.cumulativeIncome}
+            class:dark:border-gray-600={!activeCharts.cumulativeIncome}
+            on:click={() => activeCharts.cumulativeIncome = !activeCharts.cumulativeIncome}>
+            Cumulative Income
+          </button>
+          
+          <button 
+            class="px-3 py-1 text-sm rounded border"
+            class:bg-primary-600={activeCharts.monthlyDelta} 
+            class:text-white={activeCharts.monthlyDelta}
+            class:border-primary-600={activeCharts.monthlyDelta}
+            class:bg-white={!activeCharts.monthlyDelta} 
+            class:dark:bg-gray-800={!activeCharts.monthlyDelta}
+            class:text-gray-800={!activeCharts.monthlyDelta} 
+            class:dark:text-gray-200={!activeCharts.monthlyDelta}
+            class:border-gray-300={!activeCharts.monthlyDelta}
+            class:dark:border-gray-600={!activeCharts.monthlyDelta}
+            on:click={() => activeCharts.monthlyDelta = !activeCharts.monthlyDelta}>
+            Income Delta
+          </button>
+          
+          <button 
+            class="px-3 py-1 text-sm rounded border"
+            class:bg-primary-600={activeCharts.incomeSource} 
+            class:text-white={activeCharts.incomeSource}
+            class:border-primary-600={activeCharts.incomeSource}
+            class:bg-white={!activeCharts.incomeSource} 
+            class:dark:bg-gray-800={!activeCharts.incomeSource}
+            class:text-gray-800={!activeCharts.incomeSource} 
+            class:dark:text-gray-200={!activeCharts.incomeSource}
+            class:border-gray-300={!activeCharts.incomeSource}
+            class:dark:border-gray-600={!activeCharts.incomeSource}
+            on:click={() => activeCharts.incomeSource = !activeCharts.incomeSource}>
+            Income Sources
+          </button>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-1 gap-6">
+        <!-- Income Comparison Chart -->
+        {#if activeCharts.monthlyIncome}
+          <div>
+            <MonthlyIncomeChart
+              {selectedProjection}
+              {compareProjection}
+              {selectedScenario}
+              {compareScenario}
+            />
+          </div>
+        {/if}
+        
+        <!-- Cumulative Income Chart -->
+        {#if activeCharts.cumulativeIncome}
+          <div>
+            <CumulativeIncomeChart
+              {selectedProjection}
+              {compareProjection}
+              {selectedScenario}
+              {compareScenario}
+            />
+          </div>
+        {/if}
+        
+        <!-- Monthly Income Delta Chart -->
+        {#if activeCharts.monthlyDelta}
+          <div>
+            <MonthlyIncomeDeltaChart
+              {selectedProjection}
+              {compareProjection}
+              {selectedScenario}
+              {compareScenario}
+            />
+          </div>
+        {/if}
+        
+        <!-- Income Source Breakdown Chart -->
+        {#if activeCharts.incomeSource}
+          <div>
+            <IncomeSourceChart
+              {selectedProjection}
+              {compareProjection}
+              {selectedScenario}
+              {compareScenario}
+            />
+          </div>
+        {/if}
+      </div>
     </div>
   {:else}
     <div class="text-center py-8">

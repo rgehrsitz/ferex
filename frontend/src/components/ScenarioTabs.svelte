@@ -8,12 +8,12 @@
   export let scenario;
   let tab = 'Pension';
   const tabs = [
-    { label: 'Pension', comp: PensionSection },
-    { label: 'Social Security', comp: SocialSecuritySection },
-    { label: 'TSP', comp: TSPSection },
-    { label: 'Tax', comp: TaxSection },
-    { label: 'COLA', comp: COLASection },
-    { label: 'Other Income', comp: OtherIncomeSection }
+    { label: 'Pension', comp: PensionSection, prop: 'pension' },
+    { label: 'Social Security', comp: SocialSecuritySection, prop: 'socialSecurity' },
+    { label: 'TSP', comp: TSPSection, prop: 'tsp' },
+    { label: 'Tax', comp: TaxSection, prop: 'tax' },
+    { label: 'COLA', comp: COLASection, prop: 'cola' },
+    { label: 'Other Income', comp: OtherIncomeSection, prop: 'otherIncome' }
   ];
 </script>
 
@@ -40,7 +40,7 @@
   {#each tabs as t}
     {#if tab === t.label}
       <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-        <svelte:component this={t.comp} bind:data={scenario.data[t.label.replace(/ /g,'').toLowerCase()]} />
+        <svelte:component this={t.comp} bind:data={scenario.data[t.prop]} />
       </div>
     {/if}
   {/each}
