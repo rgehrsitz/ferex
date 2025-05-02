@@ -98,26 +98,67 @@
     // Social Security data
     if (scenario.data.socialSecurity) {
       const ss = new main.SocialSecurityInput();
-      ss.startAge = scenario.data.socialSecurity.startAge;
-      ss.estimatedMonthlyBenefit = scenario.data.socialSecurity.estimatedMonthlyBenefit;
-      ss.isEligible = scenario.data.socialSecurity.isEligible;
-      ss.birthYear = scenario.data.socialSecurity.birthYear;
-      ss.birthMonth = scenario.data.socialSecurity.birthMonth;
+      ss.startAge = scenario.data.socialSecurity.startAge || 62;
+      ss.estimatedMonthlyBenefit = scenario.data.socialSecurity.estimatedMonthlyBenefit || 0;
+      ss.isEligible = scenario.data.socialSecurity.isEligible !== undefined ? scenario.data.socialSecurity.isEligible : true;
+      ss.birthYear = scenario.data.socialSecurity.birthYear || 1960;
+      ss.birthMonth = scenario.data.socialSecurity.birthMonth || 1;
+      
+      // Set default values for estimation
+      ss.estimatedAnnualSalary = 60000; // Default annual salary
+      ss.yearsWorked = 35; // Default years worked for estimation
+      
+      // Add SSA estimates if available
+      if (scenario.data.socialSecurity.ssaEstimateAt62 > 0) {
+        ss.userProvidedEstimate62 = scenario.data.socialSecurity.ssaEstimateAt62;
+      }
+      if (scenario.data.socialSecurity.ssaEstimateAtFRA > 0) {
+        ss.userProvidedEstimateFRA = scenario.data.socialSecurity.ssaEstimateAtFRA;
+      }
+      if (scenario.data.socialSecurity.ssaEstimateAt70 > 0) {
+        ss.userProvidedEstimate70 = scenario.data.socialSecurity.ssaEstimateAt70;
+      }
+      
       input.socialSecurity = ss;
     }
     
     // TSP data
     if (scenario.data.tsp) {
       const tsp = new main.TSPInput();
-      tsp.currentBalance = scenario.data.tsp.currentBalance;
-      tsp.traditionalBalance = scenario.data.tsp.traditionalBalance;
-      tsp.rothBalance = scenario.data.tsp.rothBalance;
-      tsp.annualContribution = scenario.data.tsp.annualContribution;
-      tsp.expectedReturnRate = scenario.data.tsp.expectedReturnRate;
-      tsp.withdrawalStrategy = scenario.data.tsp.withdrawalStrategy;
-      tsp.fixedWithdrawalAmount = scenario.data.tsp.fixedWithdrawalAmount || 0;
-      tsp.withdrawalPercentage = scenario.data.tsp.withdrawalPercentage || 0;
-      tsp.withdrawalStartAge = scenario.data.tsp.withdrawalStartAge;
+      
+      // Calculate total balance
+      const totalBalance = (scenario.data.tsp.traditionalBalance || 0) + (scenario.data.tsp.rothBalance || 0);
+      tsp.currentBalance = totalBalance;
+      
+      // Set individual balances
+      tsp.traditionalBalance = scenario.data.tsp.traditionalBalance || 0;
+      tsp.rothBalance = scenario.data.tsp.rothBalance || 0;
+      
+      // Calculate annual contribution from percentage (estimate)
+      const estimatedSalary = 100000; // Default estimate
+      const annualContribution = (
+        ((scenario.data.tsp.contributionRate || 0) / 100) * estimatedSalary + 
+        ((scenario.data.tsp.contributionRateRoth || 0) / 100) * estimatedSalary
+      );
+      tsp.annualContribution = annualContribution;
+      
+      // Expected returns and withdrawals
+      tsp.expectedReturnRate = (scenario.data.tsp.expectedReturn || 0) / 100;
+      tsp.withdrawalStrategy = scenario.data.tsp.withdrawalStrategy || 'fixed';
+      
+      // Fixed amount is stored monthly but API wants annual
+      if (scenario.data.tsp.withdrawalStrategy === 'fixed') {
+        tsp.fixedWithdrawalAmount = (scenario.data.tsp.fixedMonthlyWithdrawal || 0) * 12;
+      } else if (scenario.data.tsp.withdrawalStrategy === 'percentage') {
+        tsp.withdrawalPercentage = (scenario.data.tsp.withdrawalRate || 0) / 100;
+      } else {
+        // RMD has no parameter
+        tsp.withdrawalPercentage = 0;
+      }
+      
+      // Withdrawal start age
+      tsp.withdrawalStartAge = scenario.data.tsp.withdrawalStartAge || 62;
+      
       input.tsp = tsp;
     }
     
@@ -142,8 +183,9 @@
     }
     
     // Other Income data
-    if (scenario.data.otherIncome) {
-      const otherIncome = new main.OtherIncomeInput();
+    const otherIncome = new main.OtherIncomeInput();
+    
+    if (scenario.data.otherIncome && scenario.data.otherIncome.sources && scenario.data.otherIncome.sources.length > 0) {
       otherIncome.sources = scenario.data.otherIncome.sources.map(src => {
         const source = new main.OtherIncomeSource();
         source.id = src.id;
@@ -155,8 +197,11 @@
         source.applyCola = src.applyCola;
         return source;
       });
-      input.otherIncome = otherIncome;
+    } else {
+      otherIncome.sources = []; // Ensure it's initialized with an empty array
     }
+    
+    input.otherIncome = otherIncome;
     
     // Projection age range
     input.projectionStartAge = scenario.data.pension.retirementAge;

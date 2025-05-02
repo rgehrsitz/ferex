@@ -72,20 +72,36 @@
   }
   
   function getAnnualWithdrawal() {
-    if (projectionResult.yearlyData && projectionResult.yearlyData.length > 0) {
+    // Check for valid projection data first
+    if (projectionResult && projectionResult.yearlyData && projectionResult.yearlyData.length > 0) {
       // Find the first year with withdrawals
       for (const year of projectionResult.yearlyData) {
         if (year.withdrawals > 0) {
           return year.withdrawals;
         }
       }
+      
+      // If no withdrawals found but we have data, find first year after withdrawal start age
+      const withdrawalStartYear = projectionResult.yearlyData.find(year => year.age >= data.withdrawalStartAge);
+      if (withdrawalStartYear) {
+        // Calculate based on strategy
+        if (data.withdrawalStrategy === 'percentage') {
+          return withdrawalStartYear.startingBalance * (data.withdrawalRate / 100);
+        } else if (data.withdrawalStrategy === 'fixed') {
+          return data.fixedMonthlyWithdrawal * 12;
+        } else {
+          // RMD simplified approximation
+          return withdrawalStartYear.startingBalance / 25;
+        }
+      }
     }
     
     // Fallback to simple calculation if no projection data
-    const totalBalance = data.traditionalBalance + data.rothBalance;
-    if (data.withdrawalStrategy === 'percentage') {
+    const totalBalance = data.traditionalBalance + data.rothBalance || 0;
+    
+    if (data.withdrawalStrategy === 'percentage' && data.withdrawalRate) {
       return totalBalance * (data.withdrawalRate / 100);
-    } else if (data.withdrawalStrategy === 'fixed') {
+    } else if (data.withdrawalStrategy === 'fixed' && data.fixedMonthlyWithdrawal) {
       return data.fixedMonthlyWithdrawal * 12;
     } else {
       // RMD simplified approximation
@@ -106,9 +122,9 @@
     }
   }
 
-  $: annualWithdrawal = getAnnualWithdrawal();
-  $: monthlyWithdrawal = annualWithdrawal / 12;
-  $: totalBalance = data.traditionalBalance + data.rothBalance;
+  $: annualWithdrawal = getAnnualWithdrawal() || 0;
+  $: monthlyWithdrawal = isNaN(annualWithdrawal) ? 0 : annualWithdrawal / 12;
+  $: totalBalance = (data.traditionalBalance || 0) + (data.rothBalance || 0);
   $: yearsUntilDepletion = projectionResult.notes?.match(/Balance depleted at age (\d+)/) 
                             ? parseInt(projectionResult.notes.match(/Balance depleted at age (\d+)/)[1]) - data.withdrawalStartAge
                             : '30+';
@@ -311,13 +327,13 @@
         <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
           <div class="text-sm text-gray-500 dark:text-gray-400">Annual Withdrawal</div>
           <div class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
-            ${annualWithdrawal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            ${(isNaN(annualWithdrawal) ? 0 : annualWithdrawal).toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </div>
         </div>
         <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
           <div class="text-sm text-gray-500 dark:text-gray-400">Monthly Withdrawal</div>
           <div class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
-            ${monthlyWithdrawal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            ${(isNaN(monthlyWithdrawal) ? 0 : monthlyWithdrawal).toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </div>
         </div>
       </div>

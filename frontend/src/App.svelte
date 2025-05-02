@@ -40,14 +40,14 @@
       birthMonth: 1
     },
     tsp: {
-      currentBalance: 500000,
       traditionalBalance: 400000,
       rothBalance: 100000,
-      annualContribution: 20500,
-      expectedReturnRate: 0.06,
+      contributionRate: 5,
+      contributionRateRoth: 5,
+      expectedReturn: 6,
       withdrawalStrategy: 'fixed',
-      fixedWithdrawalAmount: 2000,
-      withdrawalPercentage: 0.04,
+      fixedMonthlyWithdrawal: 2000,
+      withdrawalRate: 4,
       withdrawalStartAge: 62
     },
     tax: {
@@ -63,7 +63,26 @@
       applyColaToSocialSecurity: true
     },
     otherIncome: {
-      sources: []
+      sources: [
+        {
+          id: crypto.randomUUID(),
+          name: 'Part-time work',
+          amount: 1200,
+          frequency: 'monthly',
+          startAge: 62,
+          endAge: 70,
+          applyCola: true
+        },
+        {
+          id: crypto.randomUUID(),
+          name: 'Rental property',
+          amount: 1800,
+          frequency: 'monthly',
+          startAge: 62,
+          endAge: 90,
+          applyCola: true
+        }
+      ]
     }
   });
 
@@ -88,7 +107,19 @@
     const orig = scenarios.find(s => s.id === id);
     if (!orig) return;
     const newId = Math.max(...scenarios.map(s => s.id)) + 1;
-    scenarios = [...scenarios, { id: newId, name: orig.name + " Copy", data: { ...orig.data } }];
+    
+    // Create deep clone to ensure all nested objects are properly copied
+    const clonedData = JSON.parse(JSON.stringify(orig.data));
+    
+    // Make sure otherIncome sources have unique IDs in the duplicate
+    if (clonedData.otherIncome?.sources?.length > 0) {
+      clonedData.otherIncome.sources = clonedData.otherIncome.sources.map(source => ({
+        ...source,
+        id: crypto.randomUUID()
+      }));
+    }
+    
+    scenarios = [...scenarios, { id: newId, name: orig.name + " Copy", data: clonedData }];
   }
   function deleteScenario(id: number): void {
     scenarios = scenarios.filter(s => s.id !== id);
@@ -231,8 +262,9 @@
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-96">
         <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Save Scenarios</h3>
         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filename</label>
+          <label for="filename" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Filename</label>
           <input 
+            id="filename"
             bind:value={filename}
             type="text"
             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
