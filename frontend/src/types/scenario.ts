@@ -17,30 +17,36 @@ export interface SocialSecurityData {
   isEligible: boolean;
   birthYear: number;
   birthMonth: number;
+  ssaEstimateAt62?: number;
+  ssaEstimateAtFRA?: number;
+  ssaEstimateAt70?: number;
 }
 
 export interface TSPData {
-  currentBalance: number;
   traditionalBalance: number; // Pre-tax
   rothBalance: number; // After-tax
-  annualContribution: number;
-  expectedReturnRate: number; // As decimal (e.g., 0.06 for 6%)
+  contributionRate: number; // Traditional TSP contribution percentage 
+  contributionRateRoth: number; // Roth TSP contribution percentage
+  expectedReturn: number; // As percentage (e.g., 6 for 6%)
   withdrawalStrategy: 'fixed' | 'rmd' | 'percentage';
-  fixedWithdrawalAmount?: number;
-  withdrawalPercentage?: number;
+  withdrawalRate: number; // Percentage of balance for percentage strategy
+  fixedMonthlyWithdrawal: number; // Monthly withdrawal amount for fixed strategy
   withdrawalStartAge: number;
 }
 
 export interface TaxData {
   filingStatus: 'single' | 'married_joint' | 'married_separate' | 'head_of_household';
   stateOfResidence: string;
-  additionalIncome: number;
-  additionalDeductions: number;
   stateIncomeTaxRate: number; // As decimal (e.g., 0.05 for 5%)
+  itemizedDeductions: number;
+  federalTaxCredits: number;
+  stateTaxCredits: number;
+  age: number;
+  spouseAge: number;
 }
 
 export interface COLAData {
-  assumedInflationRate: number; // As decimal (e.g., 0.025 for 2.5%)
+  assumedInflationRate: number; // As percentage (e.g., 2.5 for 2.5%)
   applyCOLAToPension: boolean;
   applyColaToSocialSecurity: boolean;
 }

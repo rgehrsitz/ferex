@@ -1,5 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
+  
+  const dispatch = createEventDispatcher();
   let darkMode = false;
 
   // On mount, check localStorage or system preference
@@ -67,6 +70,14 @@
       console.error('[DarkMode] Error updating HTML class:', error);
     }
   }
+  
+  function handleSaveClick() {
+    dispatch('save');
+  }
+  
+  function handleLoadClick() {
+    dispatch('load');
+  }
 </script>
 
 <header class="flex items-center justify-between px-6 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
@@ -74,8 +85,33 @@
     <span class="font-bold text-lg text-primary-600 dark:text-primary-400">FEREX</span>
     <span class="text-xs text-gray-600 dark:text-gray-300 ml-2">Federal Employee Retirement Explorer</span>
   </div>
-  <div class="flex items-center gap-4">
-    <!-- Placeholder for user info, notifications, etc. -->
+  <div class="flex items-center gap-3">
+    <!-- Save and Load buttons -->
+    <button 
+      on:click={handleSaveClick} 
+      class="px-3 py-1 rounded-md text-sm font-medium 
+      bg-green-100 hover:bg-green-200 dark:bg-green-800 dark:hover:bg-green-700 
+      text-green-800 dark:text-green-200 
+      border border-green-300 dark:border-green-600 
+      transition-colors duration-200 flex items-center gap-1"
+    >
+      <span>💾</span>
+      <span>Save</span>
+    </button>
+    
+    <button 
+      on:click={handleLoadClick} 
+      class="px-3 py-1 rounded-md text-sm font-medium 
+      bg-blue-100 hover:bg-blue-200 dark:bg-blue-800 dark:hover:bg-blue-700 
+      text-blue-800 dark:text-blue-200 
+      border border-blue-300 dark:border-blue-600 
+      transition-colors duration-200 flex items-center gap-1"
+    >
+      <span>📂</span>
+      <span>Load</span>
+    </button>
+    
+    <!-- Dark Mode Toggle -->
     <button 
       on:click={toggleDarkMode} 
       class="px-3 py-1 rounded-md text-sm font-medium 
