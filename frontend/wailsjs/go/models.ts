@@ -6,6 +6,9 @@ export namespace main {
 	    yearsOfService: number;
 	    ageAtRetirement: number;
 	    unusedSickLeaveMonths: number;
+	    survivorBenefitOption: string;
+	    isPartTime: boolean;
+	    partTimeProrationFactor: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new PensionInput(source);
@@ -18,6 +21,9 @@ export namespace main {
 	        this.yearsOfService = source["yearsOfService"];
 	        this.ageAtRetirement = source["ageAtRetirement"];
 	        this.unusedSickLeaveMonths = source["unusedSickLeaveMonths"];
+	        this.survivorBenefitOption = source["survivorBenefitOption"];
+	        this.isPartTime = source["isPartTime"];
+	        this.partTimeProrationFactor = source["partTimeProrationFactor"];
 	    }
 	}
 	export class PensionResult {
