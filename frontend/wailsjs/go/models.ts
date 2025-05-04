@@ -220,6 +220,7 @@ export namespace main {
 	    withdrawalPercentage: number;
 	    withdrawalStartAge: number;
 	    birthYear: number;
+	    birthMonth: number;
 	    retirementAge: number;
 	
 	    static createFrom(source: any = {}) {
@@ -238,6 +239,7 @@ export namespace main {
 	        this.withdrawalPercentage = source["withdrawalPercentage"];
 	        this.withdrawalStartAge = source["withdrawalStartAge"];
 	        this.birthYear = source["birthYear"];
+	        this.birthMonth = source["birthMonth"];
 	        this.retirementAge = source["retirementAge"];
 	    }
 	}

@@ -4,10 +4,39 @@
   import ScenarioTabs from './components/ScenarioTabs.svelte';
   import CompareView from './components/CompareView.svelte';
   import type { Scenario, ScenarioData } from './types/scenario.js';
-  import { SaveScenarios, LoadScenarios, GetSavedScenarios } from '../wailsjs/go/main/App';
-
-  function selectScenario(id: number): void { selectedScenarioId = id; compareScenarioId = null; }
-  function selectCompare(id: number): void { compareScenarioId = id; }
+  
+  // Import stores
+  import { 
+    scenarios, 
+    selectedScenarioId, 
+    compareScenarioId,
+    selectedScenario,
+    compareScenario,
+    createDefaultScenario,
+    initializeStore,
+    createUniqueId
+  } from './stores/scenarioStore';
+  
+  import { api } from './stores/apiStore';
+  import { syncWithScenario } from './stores/userDataStore';
+  
+  // Initialize the store with default scenarios
+  initializeStore();
+  
+  // Create derivation to sync scenario data with user store
+  $: { 
+    // This will update the userData store whenever the selected scenario changes
+    $syncWithScenario; 
+  }
+  
+  function selectScenario(id: number): void { 
+    selectedScenarioId.set(id); 
+    compareScenarioId.set(null); 
+  }
+  
+  function selectCompare(id: number): void { 
+    compareScenarioId.set(id); 
+  }
   
   // State variables for file management dialogs
   let showSaveDialog = false;
@@ -18,95 +47,27 @@
   let statusMessage = "";
   let isLoading = false;
 
-  // Default data for new scenario
-  const getDefaultScenarioData = (): ScenarioData => ({
-    pension: {
-      retirementSystem: 'FERS',
-      highThreeSalary: 100000,
-      yearsOfService: 30,
-      retirementAge: 62,
-      unusedSickLeave: 1000,
-      militaryService: 0,
-      isPartTime: false,
-      partTimeProrationFactor: 1.0,
-      csrsOffset: false,
-      survivorBenefit: 'full'
-    },
-    socialSecurity: {
-      startAge: 62,
-      estimatedMonthlyBenefit: 2000,
-      isEligible: true,
-      birthYear: 1970,
-      birthMonth: 1
-    },
-    tsp: {
-      traditionalBalance: 400000,
-      rothBalance: 100000,
-      contributionRate: 5,
-      contributionRateRoth: 5,
-      expectedReturn: 6,
-      withdrawalStrategy: 'fixed',
-      fixedMonthlyWithdrawal: 2000,
-      withdrawalRate: 4,
-      withdrawalStartAge: 62
-    },
-    tax: {
-      filingStatus: 'married_joint',
-      stateOfResidence: 'VA',
-      additionalIncome: 0,
-      additionalDeductions: 0,
-      stateIncomeTaxRate: 0.05
-    },
-    cola: {
-      assumedInflationRate: 0.025,
-      applyCOLAToPension: true,
-      applyColaToSocialSecurity: true
-    },
-    otherIncome: {
-      sources: [
-        {
-          id: crypto.randomUUID(),
-          name: 'Part-time work',
-          amount: 1200,
-          frequency: 'monthly',
-          startAge: 62,
-          endAge: 70,
-          applyCola: true
-        },
-        {
-          id: crypto.randomUUID(),
-          name: 'Rental property',
-          amount: 1800,
-          frequency: 'monthly',
-          startAge: 62,
-          endAge: 90,
-          applyCola: true
-        }
-      ]
-    }
-  });
-
-  let scenarios: Scenario[] = [
-    { id: 1, name: "Scenario A", data: getDefaultScenarioData() },
-    { id: 2, name: "Scenario B", data: getDefaultScenarioData() }
-  ];
-  let selectedScenarioId: number | null = 1;
-  let compareScenarioId: number | null = null;
-
   function addScenario(): void {
-    const id = Math.max(...scenarios.map(s => s.id)) + 1;
-    scenarios = [...scenarios, { 
-      id, 
-      name: `Scenario ${String.fromCharCode(64 + id)}`, 
-      data: getDefaultScenarioData() 
-    }];
-    selectedScenarioId = id;
-    compareScenarioId = null;
+    let scenariosList;
+    scenarios.subscribe(list => scenariosList = list)();
+    
+    const id = createUniqueId(scenariosList);
+    const newScenario = createDefaultScenario(id, `Scenario ${String.fromCharCode(64 + id)}`);
+    
+    // Update the store
+    scenarios.update(list => [...list, newScenario]);
+    selectedScenarioId.set(id);
+    compareScenarioId.set(null);
   }
+  
   function duplicateScenario(id: number): void {
-    const orig = scenarios.find(s => s.id === id);
+    let scenariosList;
+    scenarios.subscribe(list => scenariosList = list)();
+    
+    const orig = scenariosList.find(s => s.id === id);
     if (!orig) return;
-    const newId = Math.max(...scenarios.map(s => s.id)) + 1;
+    
+    const newId = createUniqueId(scenariosList);
     
     // Create deep clone to ensure all nested objects are properly copied
     const clonedData = JSON.parse(JSON.stringify(orig.data));
@@ -119,12 +80,27 @@
       }));
     }
     
-    scenarios = [...scenarios, { id: newId, name: orig.name + " Copy", data: clonedData }];
+    // Update the store
+    scenarios.update(list => [...list, { id: newId, name: orig.name + " Copy", data: clonedData }]);
   }
+  
   function deleteScenario(id: number): void {
-    scenarios = scenarios.filter(s => s.id !== id);
-    if (selectedScenarioId === id) selectedScenarioId = scenarios[0]?.id || null;
-    if (compareScenarioId === id) compareScenarioId = null;
+    let scenariosList;
+    scenarios.subscribe(list => scenariosList = list)();
+    
+    // Update the store
+    scenarios.update(list => list.filter(s => s.id !== id));
+    
+    // Update selected ID if needed
+    if ($selectedScenarioId === id) {
+      const remainingScenarios = scenariosList.filter(s => s.id !== id);
+      selectedScenarioId.set(remainingScenarios[0]?.id || null);
+    }
+    
+    // Update compare ID if needed
+    if ($compareScenarioId === id) {
+      compareScenarioId.set(null);
+    }
   }
 
   // Save and load functions
@@ -139,7 +115,7 @@
     
     try {
       isLoading = true;
-      const result = await GetSavedScenarios();
+      const result = await api.getSavedScenarios();
       savedFiles = result.files;
       if (savedFiles.length > 0) {
         selectedFile = savedFiles[0];
@@ -160,14 +136,17 @@
     
     try {
       isLoading = true;
+      let scenariosList;
+      scenarios.subscribe(list => scenariosList = list)();
+      
       // Make sure filename has .json extension
       let filenameToSave = filename;
       if (!filenameToSave.endsWith('.json')) {
         filenameToSave += '.json';
       }
       
-      const result = await SaveScenarios({
-        scenarios: scenarios,
+      const result = await api.saveScenarios({
+        scenarios: scenariosList,
         filename: filenameToSave
       });
       
@@ -196,14 +175,23 @@
     
     try {
       isLoading = true;
-      const result = await LoadScenarios({
+      const result = await api.loadScenarios({
         filename: selectedFile
       });
       
       if (result.success) {
-        scenarios = result.scenarios;
-        selectedScenarioId = scenarios[0]?.id || null;
-        compareScenarioId = null;
+        // Update the store with loaded scenarios
+        scenarios.set(result.scenarios);
+        
+        // Set first scenario as selected
+        if (result.scenarios.length > 0) {
+          selectedScenarioId.set(result.scenarios[0].id);
+        } else {
+          selectedScenarioId.set(null);
+        }
+        
+        // Clear compare scenario
+        compareScenarioId.set(null);
         
         statusMessage = result.message;
         setTimeout(() => {
@@ -221,10 +209,8 @@
     }
   }
   
-  let selectedScenario: Scenario | undefined;
-  let compareScenario: Scenario | undefined;
-  $: selectedScenario = scenarios.find(s => s.id === selectedScenarioId);
-  $: compareScenario = compareScenarioId ? scenarios.find(s => s.id === compareScenarioId) : undefined;
+  // We don't need these anymore as they're derived directly in the store
+  // We use $selectedScenario and $compareScenario in the template
 </script>
 
 <div class="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100" id="main-container">
@@ -234,9 +220,9 @@
   />
   <div class="flex overflow-hidden">
     <ScenarioSidebar
-      {scenarios}
-      {selectedScenarioId}
-      {compareScenarioId}
+      scenarios={$scenarios}
+      selectedScenarioId={$selectedScenarioId}
+      compareScenarioId={$compareScenarioId}
       on:add={addScenario}
       on:duplicate={e => duplicateScenario(e.detail)}
       on:delete={e => deleteScenario(e.detail)}
@@ -244,10 +230,10 @@
       on:compare={e => selectCompare(e.detail)}
     />
     <main class="flex-1 p-6 overflow-auto">
-      {#if compareScenario}
-        <CompareView {selectedScenario} {compareScenario} />
-      {:else if selectedScenario}
-        <ScenarioTabs bind:scenario={selectedScenario} />
+      {#if $compareScenario}
+        <CompareView selectedScenario={$selectedScenario} compareScenario={$compareScenario} />
+      {:else if $selectedScenario}
+        <ScenarioTabs bind:scenario={$selectedScenario} />
       {:else}
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
           <p class="text-gray-700 dark:text-gray-300">No scenarios defined.</p>

@@ -40,7 +40,59 @@
   {#each tabs as t}
     {#if tab === t.label}
       <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-        <svelte:component this={t.comp} bind:data={scenario.data[t.prop]} />
+        <!-- Initialize the data object if it doesn't exist to prevent errors -->
+        {#if !scenario.data[t.prop]}
+          <!-- This ensures we don't get undefined errors when binding data -->
+          {#if t.prop === 'socialSecurity'}
+            {scenario.data.socialSecurity = {
+              startAge: 62,
+              estimatedMonthlyBenefit: 2000,
+              isEligible: true,
+              birthYear: 1970,
+              birthMonth: 1
+            }}
+          {:else if t.prop === 'tsp'}
+            {scenario.data.tsp = {
+              traditionalBalance: 400000,
+              rothBalance: 100000,
+              contributionRate: 5,
+              contributionRateRoth: 5,
+              expectedReturn: 6,
+              withdrawalStrategy: 'fixed',
+              fixedMonthlyWithdrawal: 2000,
+              withdrawalRate: 4,
+              withdrawalStartAge: 62
+            }}
+          {:else if t.prop === 'tax'}
+            {scenario.data.tax = {
+              filingStatus: 'married_joint',
+              stateOfResidence: 'VA',
+              stateIncomeTaxRate: 0.05,
+              itemizedDeductions: 0,
+              federalTaxCredits: 0,
+              stateTaxCredits: 0,
+              age: 62,
+              spouseAge: 62
+            }}
+          {:else if t.prop === 'cola'}
+            {scenario.data.cola = {
+              assumedInflationRate: 0.025,
+              applyCOLAToPension: true,
+              applyColaToSocialSecurity: true
+            }}
+          {:else if t.prop === 'otherIncome'}
+            {scenario.data.otherIncome = {
+              sources: []
+            }}
+          {/if}
+        {/if}
+        
+        <svelte:component 
+          this={t.comp} 
+          bind:data={scenario.data[t.prop]} 
+          scenarioId={scenario.id}
+          scenarioName={scenario.name} 
+        />
       </div>
     {/if}
   {/each}

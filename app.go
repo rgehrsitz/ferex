@@ -92,6 +92,7 @@ type TSPInput struct {
 	WithdrawalPercentage  float64 `json:"withdrawalPercentage"`
 	WithdrawalStartAge    int     `json:"withdrawalStartAge"`
 	BirthYear             int     `json:"birthYear"`
+	BirthMonth            int     `json:"birthMonth"`
 	RetirementAge         int     `json:"retirementAge"`
 }
 
@@ -317,8 +318,14 @@ func (a *App) CalculateRetirementProjection(input RetirementScenarioInput) Retir
 	// Calculate pension
 	pensionResult := a.CalculatePension(input.Pension)
 	
-	// Determine year of birth for age calculations
+	// Get birth year and month for age calculations
 	birthYear := input.SocialSecurity.BirthYear
+	birthMonth := input.SocialSecurity.BirthMonth
+	
+	// Calculate the current date and user's age more accurately
+	now := time.Now()
+	currentYear := now.Year()
+	currentMonth := int(now.Month())
 	
 	// Create annual projections
 	var yearlyData []YearlyProjectionData
@@ -339,9 +346,19 @@ func (a *App) CalculateRetirementProjection(input RetirementScenarioInput) Retir
 	// Current TSP balance at retirement start
 	currentTSPBalance := input.TSP.CurrentBalance
 	
+	// Calculate more accurate starting year based on birth date
+	startYear := currentYear
+	
+	// Calculate age more precisely (important for determining when withdrawals start)
+	userCurrentAge := currentYear - birthYear
+	if birthMonth > currentMonth {
+		userCurrentAge--
+	}
+	
 	// Calculate projections for each year
 	for age := startAge; age <= endAge; age++ {
-		year := birthYear + age
+		// Calculate the correct year based on current age and projection age
+		year := startYear + (age - userCurrentAge)
 		
 		// Create yearly data entry
 		yearData := YearlyProjectionData{
@@ -543,11 +560,16 @@ func (a *App) CalculateTSPProjection(input TSPInput) TSPProjectionResult {
 		Notes:      "",
 	}
 
-	// Calculate current age based on birth year
-	currentYear := time.Now().Year()
-	currentAge := 0
-	if input.BirthYear > 0 {
-		currentAge = currentYear - input.BirthYear
+	// Calculate current age based on birth year and month
+	now := time.Now()
+	currentYear := now.Year()
+	currentMonth := int(now.Month())
+	
+	// More accurate age calculation that considers birth month
+	currentAge := currentYear - input.BirthYear
+	// Adjust age if we haven't reached their birthday month this year
+	if input.BirthMonth > currentMonth {
+		currentAge--
 	}
 
 	// Current balance

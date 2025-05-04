@@ -1,20 +1,35 @@
 <script lang="ts">
-  import { CalculateSocialSecurity } from '../../wailsjs/go/main/App';
   import { main } from '../../wailsjs/go/models';
   import type { SocialSecurityData } from '../types/scenario';
+  import { api } from '../stores/apiStore';
+  import { updateUserData } from '../stores/userDataStore';
+  import { storeCalculationResult } from '../stores/calculationStore';
   
   export let data: SocialSecurityData;
+  export let scenarioId: number;
+  export let scenarioName: string = "";
   
-  // Initialize with defaults if not set and ensure proper types
-  if (!data.birthYear) data.birthYear = 1970;
-  // Make sure birthMonth is stored as a number
-  if (!data.birthMonth) {
-    data.birthMonth = 1;
+  // Ensure data is properly initialized
+  if (!data) {
+    data = {
+      startAge: 67, // Default to full retirement age
+      estimatedMonthlyBenefit: 2000,
+      isEligible: true,
+      birthYear: 1970,
+      birthMonth: 1
+    };
   } else {
-    data.birthMonth = parseInt(data.birthMonth, 10);
+    // Initialize with defaults if not set and ensure proper types
+    if (!data.birthYear) data.birthYear = 1970;
+    // Make sure birthMonth is stored as a number
+    if (!data.birthMonth) {
+      data.birthMonth = 1;
+    } else {
+      data.birthMonth = parseInt(data.birthMonth, 10);
+    }
+    if (!data.startAge) data.startAge = 67; // Default to full retirement age
+    if (data.isEligible === undefined) data.isEligible = true;
   }
-  if (!data.startAge) data.startAge = 67; // Default to full retirement age
-  if (data.isEligible === undefined) data.isEligible = true;
   
   let loading = false;
   let error = '';
@@ -86,10 +101,17 @@
         ssInput.userProvidedEstimate70 = parseFloat(data.ssaEstimateAt70);
       }
       
-      console.log("Social Security calculation input:", JSON.stringify(ssInput, null, 2));
+      // Share birth year and month with other components via the store
+      updateUserData({
+        birthYear: ssInput.birthYear,
+        birthMonth: ssInput.birthMonth
+      });
       
-      // Call backend API
-      calculationResult = await CalculateSocialSecurity(ssInput);
+      // Call backend API via the store
+      calculationResult = await api.calculateSocialSecurity(ssInput);
+      
+      // Store the calculation result for potential reuse by other components
+      storeCalculationResult(scenarioId, 'socialSecurity', calculationResult);
       
       console.log("Social Security calculation result:", JSON.stringify(calculationResult, null, 2));
       
@@ -130,13 +152,13 @@
 
   // Track previous values to prevent infinite loops
   let prevValues = {
-    startAge: data.startAge,
-    estimatedMonthlyBenefit: data.estimatedMonthlyBenefit,
-    birthYear: data.birthYear,
-    birthMonth: data.birthMonth,
-    ssaEstimateAt62: data.ssaEstimateAt62,
-    ssaEstimateAtFRA: data.ssaEstimateAtFRA,
-    ssaEstimateAt70: data.ssaEstimateAt70
+    startAge: data.startAge || 67,
+    estimatedMonthlyBenefit: data.estimatedMonthlyBenefit || 0,
+    birthYear: data.birthYear || 1970,
+    birthMonth: data.birthMonth || 1,
+    ssaEstimateAt62: data.ssaEstimateAt62 || 0,
+    ssaEstimateAtFRA: data.ssaEstimateAtFRA || 0,
+    ssaEstimateAt70: data.ssaEstimateAt70 || 0
   };
   
   // We've removed the automatic calculation trigger
@@ -206,7 +228,7 @@
   }
 </script>
 
-<div>
+<div data-section="social-security">
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="space-y-4">
       <div>
