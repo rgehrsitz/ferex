@@ -13,12 +13,16 @@
     addScenario,
     deleteScenario as deleteScenarioStore,
     createDefaultScenario,
-    initializeStore
+    initializeStore,
+    updateScenario as updateScenarioStore
   } from './stores/scenarioStore.js';
   import { selectedScenarioId, compareScenarioId } from './stores/uiStore.js';
   import { api } from './stores/apiStore.js';
   import { appData } from './stores/appDataStore.js';
   import { updateUserProfile, getUserProfile } from './stores/userDataStore.js';
+
+  // Debug: log scenarios store whenever it changes
+  $: console.log('App scenarios store updated', $scenarios);
 
   // Initialize the store with default scenarios
   initializeStore();
@@ -53,6 +57,7 @@
       isLoading = true;
       let scenariosList;
       scenarios.subscribe(list => scenariosList = list)();
+      console.log('Saving scenarios payload', JSON.stringify(scenariosList, null, 2));
       
       // Make sure filename has .json extension
       let filenameToSave = filename;
@@ -178,6 +183,12 @@
   function selectCompare(id: number): void { 
     compareScenarioId.set(id); 
   }
+
+  // Handle scenario updates from child sections
+  function handleUpdateScenario(event): void {
+    console.log('App.handleUpdateScenario received', event.detail);
+    updateScenarioStore(event.detail);
+  }
 </script>
 
 <div class="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100" id="main-container">
@@ -200,7 +211,7 @@
       {#if $compareScenario}
         <CompareView selectedScenario={$selectedScenario} compareScenario={$compareScenario} />
       {:else if $selectedScenario}
-        <ScenarioTabs bind:scenario={$selectedScenario} />
+        <ScenarioTabs scenario={$selectedScenario} on:update-scenario={handleUpdateScenario} />
       {:else}
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
           <p class="text-gray-700 dark:text-gray-300">No scenarios defined.</p>

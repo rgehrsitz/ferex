@@ -1,9 +1,18 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
   import { CalculatePension } from '../../wailsjs/go/main/App.js';
   import { main } from '../../wailsjs/go/models.js';
   import type { PensionData } from '../types/scenario.js';
 
+  const dispatch = createEventDispatcher();
   export let data: PensionData;
+
+  // Clone prop into local mutable state
+  let localData: PensionData = { ...data };
+  // Sync incoming prop changes
+  $: if (JSON.stringify(data) !== JSON.stringify(localData)) {
+    localData = { ...data };
+  }
 
   const retirementSystems = [
     { value: 'FERS', label: 'FERS' },
@@ -32,10 +41,10 @@
       error = '';
       
       // Convert hours to months for sick leave (assuming 174 hours = 1 month)
-      const sickLeaveMonths = Math.round(data.unusedSickLeave / 174);
+      const sickLeaveMonths = Math.round(localData.unusedSickLeave / 174);
       
       // Map the frontend retirement system to the backend format
-      let systemValue = data.retirementSystem;
+      let systemValue = localData.retirementSystem;
       if (systemValue === 'CSRS_OFFSET') {
         systemValue = 'CSRS Offset';
       }
@@ -43,13 +52,13 @@
       // Create input object for backend
       const pensionInput = new main.PensionInput();
       pensionInput.system = systemValue;
-      pensionInput.high3Salary = data.highThreeSalary;
-      pensionInput.yearsOfService = data.yearsOfService;
-      pensionInput.ageAtRetirement = data.retirementAge;
+      pensionInput.high3Salary = localData.highThreeSalary;
+      pensionInput.yearsOfService = localData.yearsOfService;
+      pensionInput.ageAtRetirement = localData.retirementAge;
       pensionInput.unusedSickLeaveMonths = sickLeaveMonths;
-      pensionInput.survivorBenefitOption = data.survivorBenefit;
-      pensionInput.isPartTime = data.isPartTime;
-      pensionInput.partTimeProrationFactor = data.partTimeProrationFactor;
+      pensionInput.survivorBenefitOption = localData.survivorBenefit;
+      pensionInput.isPartTime = localData.isPartTime;
+      pensionInput.partTimeProrationFactor = localData.partTimeProrationFactor;
       
       // Call backend API
       calculationResult = await CalculatePension(pensionInput);
@@ -64,13 +73,19 @@
     }
   }
 
-  // Automatically trigger calculation on any data change
+  // Emit updates to parent whenever localData changes
+  $: dispatch('update', localData);
+
   $: calculatePension();
 
   $: annualPension = calculationResult.annualPension;
   $: monthlyPension = calculationResult.monthlyPension;
+
+  // Debug: log pension data on any change
+  $: console.log('PensionSection data updated', JSON.stringify(localData));
 </script>
 
+<!-- Capture input events to bubble across shadow boundaries -->
 <div>
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="space-y-4">
@@ -81,7 +96,7 @@
         <select 
           id="retirementSystem"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.retirementSystem}
+          bind:value={localData.retirementSystem}
         >
           {#each retirementSystems as system}
             <option value={system.value}>{system.label}</option>
@@ -103,7 +118,7 @@
             min="0"
             step="1000"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.highThreeSalary}
+            bind:value={localData.highThreeSalary}
           />
         </div>
       </div>
@@ -118,7 +133,7 @@
           min="0"
           step="0.5"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.yearsOfService}
+          bind:value={localData.yearsOfService}
         />
       </div>
 
@@ -132,7 +147,7 @@
           min="55"
           max="75"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.retirementAge}
+          bind:value={localData.retirementAge}
         />
       </div>
     </div>
@@ -147,7 +162,7 @@
           type="number"
           min="0"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.unusedSickLeave}
+          bind:value={localData.unusedSickLeave}
         />
       </div>
 
@@ -161,7 +176,7 @@
           min="0"
           step="0.5"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.militaryService}
+          bind:value={localData.militaryService}
         />
       </div>
       
@@ -171,14 +186,14 @@
             id="isPartTime"
             type="checkbox"
             class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-            bind:checked={data.isPartTime}
+            bind:checked={localData.isPartTime}
           />
           <label for="isPartTime" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
             Include Part-time Service
           </label>
         </div>
         
-        {#if data.isPartTime}
+        {#if localData.isPartTime}
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="partTimeProrationFactor">
             Part-time Proration Factor (0.1 to 1.0)
           </label>
@@ -189,7 +204,7 @@
             max="1.0"
             step="0.01"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.partTimeProrationFactor}
+            bind:value={localData.partTimeProrationFactor}
           />
           <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Example: 0.5 for half-time service
@@ -204,7 +219,7 @@
         <select 
           id="survivorBenefit"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.survivorBenefit}
+          bind:value={localData.survivorBenefit}
         >
           {#each survivorBenefitOptions as option}
             <option value={option.value}>{option.label}</option>
@@ -212,13 +227,13 @@
         </select>
       </div>
 
-      {#if data.retirementSystem === 'CSRS_OFFSET'}
+      {#if localData.retirementSystem === 'CSRS_OFFSET'}
         <div class="flex items-center">
           <input
             id="csrsOffset"
             type="checkbox"
             class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-            bind:checked={data.csrsOffset}
+            bind:checked={localData.csrsOffset}
           />
           <label for="csrsOffset" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
             Apply CSRS Offset at age 62

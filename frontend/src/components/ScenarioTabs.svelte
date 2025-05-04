@@ -5,6 +5,8 @@
   import TaxSection from './TaxSection.svelte';
   import COLASection from './COLASection.svelte';
   import OtherIncomeSection from './OtherIncomeSection.svelte';
+  import { createEventDispatcher } from 'svelte';
+  const dispatch = createEventDispatcher();
   export let scenario;
   let tab = 'Pension';
   const tabs = [
@@ -15,6 +17,17 @@
     { label: 'COLA', comp: COLASection, prop: 'cola' },
     { label: 'Other Income', comp: OtherIncomeSection, prop: 'otherIncome' }
   ];
+
+  // Emit full scenario update on child section changes
+  function handleSectionUpdate(prop, updatedData) {
+    console.log('ScenarioTabs.handleSectionUpdate received', prop, updatedData);
+    const newScenario = {
+      ...scenario,
+      data: { ...scenario.data, [prop]: updatedData }
+    };
+    console.log('ScenarioTabs dispatching update-scenario', newScenario);
+    dispatch('update-scenario', newScenario);
+  }
 </script>
 
 <div>
@@ -46,6 +59,7 @@
             data={scenario.data[t.prop]}
             scenarioId={scenario.id}
             scenarioName={scenario.name}
+            on:update={e => handleSectionUpdate(t.prop, e.detail)}
           />
         </div>
       {/key}
