@@ -17,6 +17,7 @@
   } from './stores/scenarioStore.js';
   import { selectedScenarioId, compareScenarioId } from './stores/uiStore.js';
   import { api } from './stores/apiStore.js';
+  import { appData } from './stores/appDataStore.js';
   import { updateUserProfile, getUserProfile } from './stores/userDataStore.js';
 
   // Initialize the store with default scenarios
@@ -81,43 +82,80 @@
     }
   }
 
-  async function loadScenarios() {
+  async function loadScenarios(): Promise<void> {
     if (!selectedFile) {
       statusMessage = "Please select a file to load.";
       return;
     }
 
+    showLoadDialog = true;
+    statusMessage = "";
+    isLoading = true;
+    console.log('Loading scenarios from', selectedFile);
     try {
-      isLoading = true;
-      const result = await api.loadScenarios({
-        filename: selectedFile
-      });
-      
-      if (result.success) {
-        // Update the store with loaded scenarios
-        scenarios.set(result.scenarios);
-        
-        // Set first scenario as selected
-        if (result.scenarios.length > 0) {
-          selectedScenarioId.set(result.scenarios[0].id);
-        } else {
-          selectedScenarioId.set(null);
-        }
-        
-        // Clear compare scenario
-        compareScenarioId.set(null);
-        
-        statusMessage = result.message;
-        setTimeout(() => {
-          showLoadDialog = false;
-          statusMessage = "";
-        }, 2000);
-      } else {
-        statusMessage = `Error: ${result.message}`;
+      const response = await api.loadScenarios({ filename: selectedFile });
+      console.log('loadScenarios response', response);
+      // handle Wails `result` wrapper
+      const payload = response?.result ?? response;
+      if (payload.success === false) {
+        statusMessage = `Error: ${payload.message}`;
+        return;
       }
+      // get scenarios array
+      const list = payload.scenarios ?? payload;
+      if (!Array.isArray(list)) {
+        console.warn('Unexpected payload.scenarios', payload);
+        statusMessage = 'Error: invalid data';
+        return;
+      }
+      // update central appData store with loaded scenarios
+      appData.update(d => ({ ...d, scenarios: list }));
+      if (list.length > 0) {
+        selectedScenarioId.set(list[0].id);
+      } else {
+        selectedScenarioId.set(null);
+      }
+      compareScenarioId.set(null);
+      statusMessage = payload.message || 'Loaded successfully.';
+      setTimeout(() => {
+        showLoadDialog = false;
+        statusMessage = "";
+      }, 2000);
     } catch (error) {
-      console.error("Error loading scenarios:", error);
-      statusMessage = "Error loading scenarios. Please try again.";
+      console.error('Error loading scenarios:', error);
+      statusMessage = 'Error loading scenarios. Please try again.';
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  // Show the Save dialog
+  function handleSave(): void {
+    showSaveDialog = true;
+    statusMessage = "";
+  }
+
+  // Show the Load dialog and fetch saved file list
+  async function handleLoad(): Promise<void> {
+    showLoadDialog = true;
+    statusMessage = "";
+    isLoading = true;
+    try {
+      const response = await api.getSavedScenarios();
+      console.log('getSavedScenarios response', response);
+      // Wails bindings often wrap data in a `result` field
+      const payload = response?.result ?? response;
+      if (Array.isArray(payload)) {
+        savedFiles = payload;
+      } else if (Array.isArray(payload.files)) {
+        savedFiles = payload.files;
+      } else {
+        console.warn('Unexpected payload for saved files', payload);
+        savedFiles = [];
+      }
+    } catch (err) {
+      console.error('Error fetching saved files:', err);
+      statusMessage = 'Error fetching saved files.';
     } finally {
       isLoading = false;
     }
