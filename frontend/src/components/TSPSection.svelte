@@ -1,13 +1,12 @@
 <script lang="ts">
-  import { main } from '../../wailsjs/go/models';
-  import type { TSPData } from '../types/scenario';
-  import { api } from '../stores/apiStore';
-  import { userData } from '../stores/userDataStore';
-  import { storeCalculationResult } from '../stores/calculationStore';
+  import { main } from '../../wailsjs/go/models.js';
+  import type { TSPData } from '../types/scenario.js';
+  import { api } from '../stores/apiStore.js';
+  import { storeCalculationResult } from '../stores/calculationStore.js';
   
   export let data: TSPData;
   export let scenarioId: number;
-  export let scenarioName: string = "";
+  export const scenarioName: string = "";
   
   // Ensure data is properly initialized
   if (!data) {

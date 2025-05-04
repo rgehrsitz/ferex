@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { CalculatePension } from '../../wailsjs/go/main/App';
-  import { main } from '../../wailsjs/go/models';
-  import type { PensionData } from '../types/scenario';
+  import { CalculatePension } from '../../wailsjs/go/main/App.js';
+  import { main } from '../../wailsjs/go/models.js';
+  import type { PensionData } from '../types/scenario.js';
 
   export let data: PensionData;
 
@@ -64,13 +64,8 @@
     }
   }
 
-  // Trigger calculation when relevant inputs change
-  $: {
-    if (data.retirementSystem || data.highThreeSalary || data.yearsOfService || 
-        data.retirementAge || data.unusedSickLeave || data.survivorBenefit) {
-      calculatePension();
-    }
-  }
+  // Automatically trigger calculation on any data change
+  $: calculatePension();
 
   $: annualPension = calculationResult.annualPension;
   $: monthlyPension = calculationResult.monthlyPension;

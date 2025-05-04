@@ -1,13 +1,12 @@
 <script lang="ts">
-  import { main } from '../../wailsjs/go/models';
-  import type { SocialSecurityData } from '../types/scenario';
-  import { api } from '../stores/apiStore';
-  import { updateUserData } from '../stores/userDataStore';
-  import { storeCalculationResult } from '../stores/calculationStore';
+  import { main } from '../../wailsjs/go/models.js';
+  import type { SocialSecurityData } from '../types/scenario.js';
+  import { api } from '../stores/apiStore.js';
+  import { storeCalculationResult } from '../stores/calculationStore.js';
   
   export let data: SocialSecurityData;
   export let scenarioId: number;
-  export let scenarioName: string = "";
+  export let scenarioName: string;
   
   // Ensure data is properly initialized
   if (!data) {
@@ -100,12 +99,6 @@
       if (data.ssaEstimateAt70 && data.ssaEstimateAt70 > 0) {
         ssInput.userProvidedEstimate70 = parseFloat(data.ssaEstimateAt70);
       }
-      
-      // Share birth year and month with other components via the store
-      updateUserData({
-        birthYear: ssInput.birthYear,
-        birthMonth: ssInput.birthMonth
-      });
       
       // Call backend API via the store
       calculationResult = await api.calculateSocialSecurity(ssInput);

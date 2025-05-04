@@ -39,7 +39,7 @@
           >
             <span class="text-sm">🗑️</span>
           </button>
-          {#if selectedScenarioId !== scenario.id}
+          {#if compareScenarioId !== scenario.id}
             <button 
               class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 ml-auto"
               title="Compare" 

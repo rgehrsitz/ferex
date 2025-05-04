@@ -1,53 +1,55 @@
-import { writable, derived } from 'svelte/store';
+import { derived, get } from 'svelte/store';
+import { appData } from './appDataStore';
+import { selectedScenarioId, compareScenarioId } from './uiStore';
 
-// Main scenario store
-export const scenarios = writable([]);
-export const selectedScenarioId = writable(null);
-export const compareScenarioId = writable(null);
+// Derived view of scenarios from central appData
+export const scenarios = derived(
+    appData,
+    $appData => $appData.scenarios
+);
 
 // Derived stores for easy access to selected and compare scenarios
 export const selectedScenario = derived(
     [scenarios, selectedScenarioId],
-    ([$scenarios, $selectedScenarioId]) => {
-        return $scenarios.find(s => s.id === $selectedScenarioId);
-    }
+    ([$scenarios, $selectedScenarioId]) =>
+        $scenarios.find(s => s.id === $selectedScenarioId)
 );
 
 export const compareScenario = derived(
     [scenarios, compareScenarioId],
-    ([$scenarios, $compareScenarioId]) => {
-        return $scenarios.find(s => s.id === $compareScenarioId);
-    }
+    ([$scenarios, $compareScenarioId]) =>
+        $scenarios.find(s => s.id === $compareScenarioId)
 );
 
-// Helper functions for scenario management
+// Helper functions for scenario management using appData
 export function addScenario(newScenario) {
-    scenarios.update(list => [...list, newScenario]);
+    appData.update(d => ({
+        ...d,
+        scenarios: [...d.scenarios, newScenario]
+    }));
     return newScenario.id;
 }
 
 export function updateScenario(updatedScenario) {
-    scenarios.update(list => 
-        list.map(scenario => 
-            scenario.id === updatedScenario.id ? updatedScenario : scenario
+    appData.update(d => ({
+        ...d,
+        scenarios: d.scenarios.map(s =>
+            s.id === updatedScenario.id ? updatedScenario : s
         )
-    );
+    }));
 }
 
 export function deleteScenario(id) {
-    scenarios.update(list => list.filter(scenario => scenario.id !== id));
-    
-    // Update selected ID if the deleted scenario was selected
-    selectedScenarioId.update(currentId => {
-        if (currentId === id) {
-            // Get first available scenario, or null if none left
-            return list[0]?.id || null;
-        }
-        return currentId;
-    });
-    
-    // Update compare ID if the deleted scenario was being compared
-    compareScenarioId.update(currentId => 
+    appData.update(d => ({
+        ...d,
+        scenarios: d.scenarios.filter(s => s.id !== id)
+    }));
+    selectedScenarioId.update(currentId =>
+        currentId === id
+            ? (get(appData).scenarios[0]?.id || null)
+            : currentId
+    );
+    compareScenarioId.update(currentId =>
         currentId === id ? null : currentId
     );
 }
@@ -134,14 +136,12 @@ export function createDefaultScenario(id, name) {
 
 // Load initial scenarios
 export function initializeStore() {
-    const initialScenarios = [
-        createDefaultScenario(1, "Scenario A"),
-        createDefaultScenario(2, "Scenario B")
+    const initial = [
+        createDefaultScenario(1, 'Scenario A'),
+        createDefaultScenario(2, 'Scenario B')
     ];
-    
-    scenarios.set(initialScenarios);
-    selectedScenarioId.set(1);
+    appData.update(d => ({ ...d, scenarios: initial }));
+    selectedScenarioId.set(initial[0]?.id || null);
     compareScenarioId.set(null);
-    
-    return initialScenarios;
+    return initial;
 }

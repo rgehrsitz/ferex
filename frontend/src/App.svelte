@@ -4,136 +4,50 @@
   import ScenarioTabs from './components/ScenarioTabs.svelte';
   import CompareView from './components/CompareView.svelte';
   import type { Scenario, ScenarioData } from './types/scenario.js';
-  
-  // Import stores
-  import { 
-    scenarios, 
-    selectedScenarioId, 
-    compareScenarioId,
+
+  // Import consolidated stores
+  import {
+    scenarios,
     selectedScenario,
     compareScenario,
+    addScenario,
+    deleteScenario as deleteScenarioStore,
     createDefaultScenario,
-    initializeStore,
-    createUniqueId
-  } from './stores/scenarioStore';
-  
-  import { api } from './stores/apiStore';
-  import { syncWithScenario } from './stores/userDataStore';
-  
+    initializeStore
+  } from './stores/scenarioStore.js';
+  import { selectedScenarioId, compareScenarioId } from './stores/uiStore.js';
+  import { api } from './stores/apiStore.js';
+  import { updateUserProfile, getUserProfile } from './stores/userDataStore.js';
+
   // Initialize the store with default scenarios
   initializeStore();
-  
-  // Create derivation to sync scenario data with user store
-  $: { 
-    // This will update the userData store whenever the selected scenario changes
-    $syncWithScenario; 
-  }
-  
-  function selectScenario(id: number): void { 
-    selectedScenarioId.set(id); 
-    compareScenarioId.set(null); 
-  }
-  
-  function selectCompare(id: number): void { 
-    compareScenarioId.set(id); 
-  }
-  
-  // State variables for file management dialogs
-  let showSaveDialog = false;
-  let showLoadDialog = false;
-  let filename = "my_scenarios";
-  let savedFiles: string[] = [];
-  let selectedFile = "";
-  let statusMessage = "";
-  let isLoading = false;
 
-  function addScenario(): void {
-    let scenariosList;
-    scenarios.subscribe(list => scenariosList = list)();
-    
-    const id = createUniqueId(scenariosList);
-    const newScenario = createDefaultScenario(id, `Scenario ${String.fromCharCode(64 + id)}`);
-    
-    // Update the store
-    scenarios.update(list => [...list, newScenario]);
+  function addScenarioHandler(): void {
+    const id = addScenario(createDefaultScenario(undefined, undefined));
     selectedScenarioId.set(id);
     compareScenarioId.set(null);
   }
-  
-  function duplicateScenario(id: number): void {
-    let scenariosList;
-    scenarios.subscribe(list => scenariosList = list)();
-    
-    const orig = scenariosList.find(s => s.id === id);
+
+  function duplicateScenarioHandler(id: number): void {
+    let orig;
+    scenarios.subscribe(list => orig = list.find(s => s.id === id))();
     if (!orig) return;
-    
-    const newId = createUniqueId(scenariosList);
-    
-    // Create deep clone to ensure all nested objects are properly copied
-    const clonedData = JSON.parse(JSON.stringify(orig.data));
-    
-    // Make sure otherIncome sources have unique IDs in the duplicate
-    if (clonedData.otherIncome?.sources?.length > 0) {
-      clonedData.otherIncome.sources = clonedData.otherIncome.sources.map(source => ({
-        ...source,
-        id: crypto.randomUUID()
-      }));
-    }
-    
-    // Update the store
-    scenarios.update(list => [...list, { id: newId, name: orig.name + " Copy", data: clonedData }]);
-  }
-  
-  function deleteScenario(id: number): void {
-    let scenariosList;
-    scenarios.subscribe(list => scenariosList = list)();
-    
-    // Update the store
-    scenarios.update(list => list.filter(s => s.id !== id));
-    
-    // Update selected ID if needed
-    if ($selectedScenarioId === id) {
-      const remainingScenarios = scenariosList.filter(s => s.id !== id);
-      selectedScenarioId.set(remainingScenarios[0]?.id || null);
-    }
-    
-    // Update compare ID if needed
-    if ($compareScenarioId === id) {
-      compareScenarioId.set(null);
-    }
+    const clone = createDefaultScenario(undefined, `${orig.name} Copy`);
+    clone.data = JSON.parse(JSON.stringify(orig.data));
+    const newId = addScenario(clone);
+    selectedScenarioId.set(newId);
   }
 
-  // Save and load functions
-  async function handleSave() {
-    showSaveDialog = true;
-    statusMessage = "";
+  function deleteScenarioHandler(id: number): void {
+    deleteScenarioStore(id);
   }
-  
-  async function handleLoad() {
-    showLoadDialog = true;
-    statusMessage = "";
-    
-    try {
-      isLoading = true;
-      const result = await api.getSavedScenarios();
-      savedFiles = result.files;
-      if (savedFiles.length > 0) {
-        selectedFile = savedFiles[0];
-      }
-    } catch (error) {
-      console.error("Error getting saved scenarios:", error);
-      statusMessage = "Error loading saved files list.";
-    } finally {
-      isLoading = false;
-    }
-  }
-  
+
   async function saveScenarios() {
     if (!filename) {
       statusMessage = "Please enter a filename.";
       return;
     }
-    
+
     try {
       isLoading = true;
       let scenariosList;
@@ -166,13 +80,13 @@
       isLoading = false;
     }
   }
-  
+
   async function loadScenarios() {
     if (!selectedFile) {
       statusMessage = "Please select a file to load.";
       return;
     }
-    
+
     try {
       isLoading = true;
       const result = await api.loadScenarios({
@@ -208,9 +122,24 @@
       isLoading = false;
     }
   }
-  
-  // We don't need these anymore as they're derived directly in the store
-  // We use $selectedScenario and $compareScenario in the template
+
+  // State variables for file management dialogs
+  let showSaveDialog = false;
+  let showLoadDialog = false;
+  let filename = "my_scenarios";
+  let savedFiles: string[] = [];
+  let selectedFile = "";
+  let statusMessage = "";
+  let isLoading = false;
+
+  function selectScenario(id: number): void { 
+    selectedScenarioId.set(id); 
+    compareScenarioId.set(null); 
+  }
+
+  function selectCompare(id: number): void { 
+    compareScenarioId.set(id); 
+  }
 </script>
 
 <div class="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100" id="main-container">
@@ -223,9 +152,9 @@
       scenarios={$scenarios}
       selectedScenarioId={$selectedScenarioId}
       compareScenarioId={$compareScenarioId}
-      on:add={addScenario}
-      on:duplicate={e => duplicateScenario(e.detail)}
-      on:delete={e => deleteScenario(e.detail)}
+      on:add={addScenarioHandler}
+      on:duplicate={e => duplicateScenarioHandler(e.detail)}
+      on:delete={e => deleteScenarioHandler(e.detail)}
       on:select={e => selectScenario(e.detail)}
       on:compare={e => selectCompare(e.detail)}
     />
@@ -303,8 +232,9 @@
           </div>
         {:else}
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select File</label>
+            <label for="loadFile" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select File</label>
             <select 
+              id="loadFile"
               bind:value={selectedFile}
               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
                      bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
