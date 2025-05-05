@@ -76,7 +76,8 @@
   
   const currentYear = new Date().getFullYear();
   
-  async function calculateSocialSecurity() {
+  // Make the function accessible from outside
+  export async function calculateSocialSecurity() {
     try {
       loading = true;
       error = '';
@@ -241,11 +242,16 @@
 </script>
 
 <div data-section="social-security">
+  <!-- Required fields legend -->
+  <div class="mb-4 text-sm text-gray-600 dark:text-gray-400 flex items-center">
+    <span class="text-red-500 mr-1">*</span> Required fields for accurate calculations
+  </div>
+
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="space-y-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="birthYear">
-          Birth Year
+          Birth Year *
         </label>
         <input
           id="birthYear"
@@ -263,7 +269,7 @@
       
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="birthMonth">
-          Birth Month
+          Birth Month *
         </label>
         <select 
           id="birthMonth"
@@ -291,7 +297,7 @@
 
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="startAge">
-          Benefit Start Age
+          Benefit Start Age *
         </label>
         <select 
           id="startAge"
@@ -403,19 +409,22 @@
         </div>
       </div>
       
-      <!-- Calculate Button -->
+      <!-- Calculate Button (now secondary since we have a global calculate button) -->
       <button
-        class="mt-4 w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="mt-4 w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
         on:click={calculateSocialSecurity}
         disabled={loading || !data.birthYear || !data.startAge}
       >
         {#if loading}
-          <span class="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+          <span class="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 dark:border-primary-400"></span>
           Calculating...
         {:else}
-          Calculate Social Security Benefits
+          <span class="mr-1">📊</span> Update Estimates
         {/if}
       </button>
+      <div class="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+        Or use the "Calculate All" button in the header for full scenario calculations
+      </div>
     </div>
   </div>
 
@@ -424,7 +433,7 @@
     
     {#if !calculationResult || (!calculationResult.estimatedMonthlyAt62 && !error)}
       <div class="bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 p-4 rounded-lg mb-4">
-        To calculate your Social Security benefits, please fill in your birth information and claiming age, then click the "Calculate Social Security Benefits" button.
+        To calculate your Social Security benefits, please fill in your birth information and claiming age (marked with * above), then click the "Update Estimates" button or use the "Calculate All" button in the header.
       </div>
     {/if}
     

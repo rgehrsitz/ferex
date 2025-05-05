@@ -132,11 +132,16 @@
 
 <!-- Capture input events to bubble across shadow boundaries -->
 <div>
+  <!-- Required fields legend -->
+  <div class="mb-4 text-sm text-gray-600 dark:text-gray-400 flex items-center">
+    <span class="text-red-500 mr-1">*</span> Required fields for accurate calculations
+  </div>
+  
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="space-y-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="retirementSystem">
-          Retirement System
+          Retirement System <span class="text-red-500">*</span>
         </label>
         <select 
           id="retirementSystem"
@@ -151,7 +156,7 @@
 
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="highThreeSalary">
-          High-3 Average Salary
+          High-3 Average Salary <span class="text-red-500">*</span>
         </label>
         <div class="relative rounded-md shadow-sm">
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

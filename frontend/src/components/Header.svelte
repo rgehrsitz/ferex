@@ -4,6 +4,7 @@
   
   const dispatch = createEventDispatcher();
   let darkMode = false;
+  let isCalculating = false;
 
   // On mount, check localStorage or system preference
   onMount(() => {
@@ -78,6 +79,15 @@
   function handleLoadClick() {
     dispatch('load');
   }
+  
+  function handleCalculateClick() {
+    isCalculating = true;
+    dispatch('calculate');
+    // Reset the calculating state after a short delay
+    setTimeout(() => {
+      isCalculating = false;
+    }, 1000);
+  }
 </script>
 
 <header class="flex items-center justify-between px-6 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
@@ -109,6 +119,19 @@
     >
       <span>📂</span>
       <span>Load</span>
+    </button>
+    
+    <!-- Calculate Button -->
+    <button 
+      on:click={handleCalculateClick} 
+      class="px-3 py-1 rounded-md text-sm font-medium 
+      bg-purple-100 hover:bg-purple-200 dark:bg-purple-800 dark:hover:bg-purple-700 
+      text-purple-800 dark:text-purple-200 
+      border border-purple-300 dark:border-purple-600 
+      transition-colors duration-200 flex items-center gap-1"
+    >
+      <span>📊</span>
+      <span>{isCalculating ? 'Calculating...' : 'Calculate All'}</span>
     </button>
     
     <!-- Dark Mode Toggle -->

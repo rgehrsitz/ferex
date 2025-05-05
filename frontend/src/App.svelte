@@ -125,13 +125,22 @@
         return;
       }
       // update central appData store with loaded scenarios
-      appData.update(d => ({ ...d, scenarios: list }));
-      if (list.length > 0) {
-        selectedScenarioId.set(list[0].id);
-      } else {
-        selectedScenarioId.set(null);
-      }
+      // Using a deep clone to ensure references are broken
+      const deepClonedList = JSON.parse(JSON.stringify(list));
+      console.log('Loading scenarios with deep cloned data:', deepClonedList);
+      
+      appData.update(d => ({ ...d, scenarios: deepClonedList }));
+      
+      // Force selection to trigger reactivity
+      selectedScenarioId.set(null);
       compareScenarioId.set(null);
+      
+      // Then set the first scenario as selected (if any)
+      if (list.length > 0) {
+        setTimeout(() => {
+          selectedScenarioId.set(list[0].id);
+        }, 0);
+      }
       statusMessage = payload.message || 'Loaded successfully.';
       setTimeout(() => {
         showLoadDialog = false;
@@ -209,12 +218,34 @@
     console.log('App updating scenario store with:', updatedScenario);
     updateScenarioStore(updatedScenario);
   }
+  
+  // Handle global calculation request
+  function handleGlobalCalculate(): void {
+    console.log('App.handleGlobalCalculate triggered');
+    
+    if (!$selectedScenario) {
+      console.warn('No scenario selected, cannot calculate');
+      return;
+    }
+    
+    // Send an event to ScenarioTabs to trigger calculation in all sections
+    // We'll create a custom event for this that will be captured by ScenarioTabs
+    const calculationEvent = new CustomEvent('global-calculate', {
+      detail: { scenarioId: $selectedScenario.id }
+    });
+    
+    // Dispatch the event to the document so it bubbles up
+    document.dispatchEvent(calculationEvent);
+    
+    console.log('Global calculation event dispatched');
+  }
 </script>
 
 <div class="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100" id="main-container">
   <Header 
     on:save={handleSave}
     on:load={handleLoad}
+    on:calculate={handleGlobalCalculate}
   />
   <div class="flex overflow-hidden">
     <ScenarioSidebar
