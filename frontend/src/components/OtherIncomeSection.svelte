@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { OtherIncomeData, OtherIncomeSource } from '../types/scenario';
   import { v4 as uuidv4 } from 'uuid';
+  import { createEventDispatcher } from 'svelte';
+  
+  const dispatch = createEventDispatcher();
   
   export let data: OtherIncomeData = {
     sources: []
@@ -47,6 +50,9 @@
       
       // Update the actual data to match display sources
       data.sources = JSON.parse(JSON.stringify(displaySources));
+      
+      // Notify parent component of changes
+      dispatch('update', data);
     } else {
       // Make sure we have at least one source
       if (data.sources.length === 0) {
@@ -59,6 +65,9 @@
           endAge: 90,
           applyCola: false
         }];
+        
+        // Notify parent component of changes
+        dispatch('update', data);
       }
       
       // Update display sources from data
@@ -92,6 +101,9 @@
     totalAnnualIncome = calculateTotalAnnualIncome();
     
     console.log('Added new income source. Total sources:', displaySources.length);
+    
+    // Notify parent component of changes
+    dispatch('update', data);
   }
 
   function removeIncomeStream(id: string) {
@@ -117,6 +129,9 @@
     
     // Re-calculate total
     totalAnnualIncome = calculateTotalAnnualIncome();
+    
+    // Notify parent component of changes
+    dispatch('update', data);
   }
 
   function calculateTotalAnnualIncome() {
@@ -167,6 +182,8 @@
               on:change={() => {
                 // Update the original data on change
                 data.sources = JSON.parse(JSON.stringify(displaySources));
+                // Notify parent component of changes
+                dispatch('update', data);
               }}
             />
           </div>
@@ -181,6 +198,8 @@
               bind:value={source.frequency}
               on:change={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
+                // Notify parent component of changes
+                dispatch('update', data);
               }}
             >
               {#each frequencyOptions as option}
@@ -206,6 +225,8 @@
                 bind:value={source.amount}
               on:change={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
+                // Notify parent component of changes
+                dispatch('update', data);
               }}
               />
             </div>
@@ -224,6 +245,8 @@
               bind:value={source.startAge}
               on:change={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
+                // Notify parent component of changes
+                dispatch('update', data);
               }}
             />
           </div>
@@ -241,6 +264,8 @@
               bind:value={source.endAge}
               on:change={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
+                // Notify parent component of changes
+                dispatch('update', data);
               }}
             />
           </div>
@@ -255,6 +280,8 @@
               bind:checked={source.applyCola}
               on:change={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
+                // Notify parent component of changes
+                dispatch('update', data);
               }}
             />
             <label for={`cola-${source.id}`} class="ml-2 block text-sm text-gray-700 dark:text-gray-300">

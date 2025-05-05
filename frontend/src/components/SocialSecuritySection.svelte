@@ -3,31 +3,50 @@
   import type { SocialSecurityData } from '../types/scenario.js';
   import { api } from '../stores/apiStore.js';
   import { storeCalculationResult } from '../stores/calculationStore.js';
+  import { createEventDispatcher } from 'svelte';
+  
+  const dispatch = createEventDispatcher();
   
   export let data: SocialSecurityData;
   export let scenarioId: number;
   export let scenarioName: string;
   
-  // Ensure data is properly initialized
+  // Ensure data is initialized with defaults
   if (!data) {
-    data = {
-      startAge: 67, // Default to full retirement age
-      estimatedMonthlyBenefit: 2000,
-      isEligible: true,
-      birthYear: 1970,
-      birthMonth: 1
-    };
-  } else {
-    // Initialize with defaults if not set and ensure proper types
-    if (!data.birthYear) data.birthYear = 1970;
-    // Make sure birthMonth is stored as a number
-    if (!data.birthMonth) {
-      data.birthMonth = 1;
-    } else {
-      data.birthMonth = parseInt(data.birthMonth, 10);
-    }
-    if (!data.startAge) data.startAge = 67; // Default to full retirement age
-    if (data.isEligible === undefined) data.isEligible = true;
+    data = {};
+  }
+  
+  // Set defaults for any missing fields
+  data.startAge = data.startAge ?? 67; // Default to full retirement age
+  data.estimatedMonthlyBenefit = data.estimatedMonthlyBenefit ?? 2000;
+  data.isEligible = data.isEligible ?? true;
+  data.birthYear = data.birthYear ?? 1970;
+  data.birthMonth = data.birthMonth ?? 1;
+  
+  // Make sure birthMonth is stored as a number
+  if (typeof data.birthMonth === 'string') {
+    data.birthMonth = parseInt(data.birthMonth, 10);
+  }
+
+  // Create local variables for UI binding
+  let startAge = data.startAge;
+  let estimatedMonthlyBenefit = data.estimatedMonthlyBenefit;
+  let isEligible = data.isEligible;
+  let birthYear = data.birthYear;
+  let birthMonth = data.birthMonth;
+  
+  // Update the data object whenever UI fields change
+  $: {
+    data.startAge = startAge;
+    data.estimatedMonthlyBenefit = estimatedMonthlyBenefit;
+    data.isEligible = isEligible;
+    data.birthYear = birthYear;
+    data.birthMonth = birthMonth;
+    
+    console.log('SocialSecuritySection updating data:', data);
+    
+    // Notify parent component of changes
+    dispatch('update', data);
   }
   
   let loading = false;
@@ -234,7 +253,7 @@
           min="1930"
           max="2000"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.birthYear}
+          bind:value={birthYear}
           on:change={() => {
             // Ensure stored as number
             data.birthYear = parseInt(data.birthYear, 10);
@@ -249,7 +268,7 @@
         <select 
           id="birthMonth"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.birthMonth}
+          bind:value={birthMonth}
           on:change={() => {
             // Ensure birthMonth is stored as a number
             data.birthMonth = parseInt(data.birthMonth, 10);
@@ -277,7 +296,7 @@
         <select 
           id="startAge"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.startAge}
+          bind:value={startAge}
           on:change={() => {
             // Ensure startAge is stored as a number
             data.startAge = parseInt(data.startAge, 10);
@@ -294,7 +313,7 @@
           id="isEligible"
           type="checkbox"
           class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-          bind:checked={data.isEligible}
+          bind:checked={isEligible}
         />
         <label for="isEligible" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Eligible for Social Security
@@ -323,10 +342,12 @@
             step="50"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={data.ssaEstimateAt62}
+            on:change={() => dispatch('update', data)}
             on:change={() => {
               if (data.ssaEstimateAt62) {
                 data.ssaEstimateAt62 = parseFloat(data.ssaEstimateAt62);
               }
+              dispatch('update', data);
             }}
           />
         </div>
@@ -351,6 +372,7 @@
               if (data.ssaEstimateAtFRA) {
                 data.ssaEstimateAtFRA = parseFloat(data.ssaEstimateAtFRA);
               }
+              dispatch('update', data);
             }}
           />
         </div>
@@ -375,6 +397,7 @@
               if (data.ssaEstimateAt70) {
                 data.ssaEstimateAt70 = parseFloat(data.ssaEstimateAt70);
               }
+              dispatch('update', data);
             }}
           />
         </div>

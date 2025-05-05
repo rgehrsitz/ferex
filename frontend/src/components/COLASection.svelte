@@ -2,8 +2,26 @@
   import { CalculateCOLAAdjustment } from '../../wailsjs/go/main/App';
   import { main } from '../../wailsjs/go/models';
   import type { COLAData } from '../types/scenario';
+  import { createEventDispatcher } from 'svelte';
   
   export let data: COLAData;
+  
+  const dispatch = createEventDispatcher();
+  
+  // Ensure data is initialized with defaults
+  if (!data) {
+    data = {};
+  }
+  
+  // Set defaults for any missing fields
+  data.assumedInflationRate = data.assumedInflationRate ?? 2.5;
+  data.applyCOLAToPension = data.applyCOLAToPension ?? true;
+  data.applyColaToSocialSecurity = data.applyColaToSocialSecurity ?? true;
+  
+  // Create local variables for UI binding
+  let assumedInflationRate = data.assumedInflationRate;
+  let applyCOLAToPension = data.applyCOLAToPension;
+  let applyColaToSocialSecurity = data.applyColaToSocialSecurity;
   
   let loading = false;
   let error = '';
@@ -33,6 +51,16 @@
     { value: 'Social Security', label: 'Social Security COLA', description: 'Based on CPI-W, usually similar to general inflation' }
   ];
   
+  // Update the data object whenever UI variables change
+  $: {
+    data.assumedInflationRate = assumedInflationRate;
+    data.applyCOLAToPension = applyCOLAToPension;
+    data.applyColaToSocialSecurity = applyColaToSocialSecurity;
+    
+    // Notify parent component of changes
+    dispatch('update', data);
+  }
+  
   async function calculateCOLA() {
     try {
       loading = true;
@@ -40,9 +68,9 @@
       
       // Create input object for backend
       const colaInput = new main.COLAInput();
-      colaInput.assumedInflationRate = data.assumedInflationRate / 100; // Convert to decimal
-      colaInput.applyCOLAToPension = data.applyCOLAToPension;
-      colaInput.applyColaToSocialSecurity = data.applyColaToSocialSecurity;
+      colaInput.assumedInflationRate = assumedInflationRate / 100; // Convert to decimal
+      colaInput.applyCOLAToPension = applyCOLAToPension;
+      colaInput.applyColaToSocialSecurity = applyColaToSocialSecurity;
       colaInput.baseAmount = baseAmount;
       colaInput.retirementSystem = selectedSystem;
       colaInput.retirementAge = 60; // Default for calculation
@@ -55,7 +83,7 @@
       calculationResult = await CalculateCOLAAdjustment(colaInput);
       
       // Calculate example COLAs for display
-      calculateEstimatedFirstYearCOLA(data.assumedInflationRate);
+      calculateEstimatedFirstYearCOLA(assumedInflationRate);
       
       return calculationResult;
     } catch (err) {
@@ -82,7 +110,7 @@
     // Return FERS COLA, CSRS COLA (which is the full inflation rate),
     // and approximate SS COLA (using inflation as proxy)
     return {
-      fers: data.applyCOLAToPension ? fersCOLA * 100 : inflationRate,
+      fers: applyCOLAToPension ? fersCOLA * 100 : inflationRate,
       csrs: inflationRate,
       socialSecurity: inflationRate
     };
@@ -90,15 +118,15 @@
   
   // Trigger calculation when relevant inputs change
   $: {
-    if (data.assumedInflationRate !== undefined || 
-        data.applyCOLAToPension !== undefined || 
-        data.applyColaToSocialSecurity !== undefined ||
+    if (assumedInflationRate !== undefined || 
+        applyCOLAToPension !== undefined || 
+        applyColaToSocialSecurity !== undefined ||
         selectedSystem) {
       calculateCOLA();
     }
   }
 
-  $: estCOLA = calculateEstimatedFirstYearCOLA(data.assumedInflationRate);
+  $: estCOLA = calculateEstimatedFirstYearCOLA(assumedInflationRate);
 </script>
 
 <div>
@@ -116,7 +144,13 @@
             max="10"
             step="0.1"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.assumedInflationRate}
+            bind:value={assumedInflationRate}
+            on:change={() => {
+              if (assumedInflationRate) {
+                assumedInflationRate = parseFloat(assumedInflationRate.toString());
+              }
+              dispatch('update', data);
+            }}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
             <span class="text-gray-500 dark:text-gray-400 sm:text-sm">%</span>
@@ -129,7 +163,8 @@
           id="applyCOLAToPension"
           type="checkbox"
           class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-          bind:checked={data.applyCOLAToPension}
+          bind:checked={applyCOLAToPension}
+          on:change={() => dispatch('update', data)}
         />
         <label for="applyCOLAToPension" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Apply COLA to Pension
@@ -141,7 +176,8 @@
           id="applyColaToSocialSecurity"
           type="checkbox"
           class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-          bind:checked={data.applyColaToSocialSecurity}
+          bind:checked={applyColaToSocialSecurity}
+          on:change={() => dispatch('update', data)}
         />
         <label for="applyColaToSocialSecurity" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Apply COLA to Social Security

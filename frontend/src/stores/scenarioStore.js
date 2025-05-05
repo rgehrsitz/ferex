@@ -31,12 +31,25 @@ export function addScenario(newScenario) {
 }
 
 export function updateScenario(updatedScenario) {
-    appData.update(d => ({
-        ...d,
-        scenarios: d.scenarios.map(s =>
-            s.id === updatedScenario.id ? updatedScenario : s
-        )
-    }));
+    console.log('scenarioStore.updateScenario called with:', updatedScenario);
+    
+    // Make a deep copy of the updated scenario to prevent reference issues
+    const clonedScenario = JSON.parse(JSON.stringify(updatedScenario));
+    
+    appData.update(d => {
+        console.log('Current appData.scenarios before update:', d.scenarios);
+        
+        const newScenarios = d.scenarios.map(s => 
+            s.id === clonedScenario.id ? clonedScenario : s
+        );
+        
+        console.log('Updated appData.scenarios after update:', newScenarios);
+        
+        return {
+            ...d,
+            scenarios: newScenarios
+        };
+    });
 }
 
 export function deleteScenario(id) {
@@ -67,16 +80,15 @@ export function createDefaultScenario(id, name) {
         name,
         data: {
             pension: {
-                retirementSystem: 'FERS',
-                highThreeSalary: 100000,
+                system: 'FERS',
+                high3Salary: 100000,
                 yearsOfService: 30,
-                retirementAge: 62,
-                unusedSickLeave: 1000,
-                militaryService: 0,
+                ageAtRetirement: 62,
+                unusedSickLeaveMonths: 6, // Approximately 1000 hours converted to months
+                survivorBenefitOption: 'full',
                 isPartTime: false,
                 partTimeProrationFactor: 1.0,
-                csrsOffset: false,
-                survivorBenefit: 'full'
+                militaryService: 0
             },
             socialSecurity: {
                 startAge: 62,

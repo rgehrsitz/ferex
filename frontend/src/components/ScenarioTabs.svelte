@@ -21,11 +21,16 @@
   // Emit full scenario update on child section changes
   function handleSectionUpdate(prop, updatedData) {
     console.log('ScenarioTabs.handleSectionUpdate received', prop, updatedData);
-    const newScenario = {
+    console.log('Before update, scenario.data[prop] is', scenario.data[prop]);
+    
+    // Create a deep clone of the scenario to prevent reference issues
+    const newScenario = JSON.parse(JSON.stringify({
       ...scenario,
       data: { ...scenario.data, [prop]: updatedData }
-    };
+    }));
+    
     console.log('ScenarioTabs dispatching update-scenario', newScenario);
+    console.log('New scenario will have pension data:', newScenario.data.pension);
     dispatch('update-scenario', newScenario);
   }
 </script>

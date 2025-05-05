@@ -55,8 +55,14 @@
 
     try {
       isLoading = true;
+      
+      // Get a snapshot of the current scenarios from the store
       let scenariosList;
-      scenarios.subscribe(list => scenariosList = list)();
+      scenarios.subscribe(list => {
+        // Make a deep copy to avoid reference issues
+        scenariosList = JSON.parse(JSON.stringify(list));
+      })();
+      
       console.log('Saving scenarios payload', JSON.stringify(scenariosList, null, 2));
       
       // Make sure filename has .json extension
@@ -64,6 +70,11 @@
       if (!filenameToSave.endsWith('.json')) {
         filenameToSave += '.json';
       }
+      
+      // Add additional logs for debugging
+      console.log('Scenarios store content before saving:', $scenarios);
+      console.log('Selected scenario data before saving:', $selectedScenario?.data);
+      console.log('Pension data of selected scenario:', $selectedScenario?.data?.pension);
       
       const result = await api.saveScenarios({
         scenarios: scenariosList,
@@ -187,7 +198,16 @@
   // Handle scenario updates from child sections
   function handleUpdateScenario(event): void {
     console.log('App.handleUpdateScenario received', event.detail);
-    updateScenarioStore(event.detail);
+    
+    // Make sure we're getting valid pension data
+    if (event.detail?.data?.pension) {
+      console.log('Pension data being saved:', event.detail.data.pension);
+    }
+    
+    // Ensure we're passing a complete scenario object and not just a reference
+    const updatedScenario = JSON.parse(JSON.stringify(event.detail));
+    console.log('App updating scenario store with:', updatedScenario);
+    updateScenarioStore(updatedScenario);
   }
 </script>
 

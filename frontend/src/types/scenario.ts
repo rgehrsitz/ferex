@@ -1,14 +1,16 @@
 export interface PensionData {
-  retirementSystem: 'FERS' | 'CSRS' | 'CSRS_OFFSET';
-  highThreeSalary: number;
+  // Fields that match the backend struct names
+  system?: string;
+  high3Salary?: number;
   yearsOfService: number;
-  retirementAge: number;
-  unusedSickLeave: number; // in hours
-  militaryService: number; // in years
+  ageAtRetirement?: number;
+  unusedSickLeaveMonths?: number;
   isPartTime: boolean;
   partTimeProrationFactor: number; // 0.1 to 1.0
-  csrsOffset: boolean; // Only relevant for CSRS_OFFSET
-  survivorBenefit: 'none' | 'partial' | 'full';
+  survivorBenefitOption?: string;
+  
+  // Additional frontend fields
+  militaryService?: number; // in years
 }
 
 export interface SocialSecurityData {

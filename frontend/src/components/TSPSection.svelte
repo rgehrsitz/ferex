@@ -3,46 +3,59 @@
   import type { TSPData } from '../types/scenario.js';
   import { api } from '../stores/apiStore.js';
   import { storeCalculationResult } from '../stores/calculationStore.js';
+  import { getUserProfile } from '../stores/userDataStore.js';
+  
+  import { createEventDispatcher } from 'svelte';
+  const dispatch = createEventDispatcher();
   
   export let data: TSPData;
   export let scenarioId: number;
   export const scenarioName: string = "";
   
-  // Ensure data is properly initialized
+  // Ensure data is initialized with defaults
   if (!data) {
-    data = {
-      traditionalBalance: 400000,
-      rothBalance: 100000,
-      contributionRate: 5,
-      contributionRateRoth: 5,
-      expectedReturn: 6,
-      withdrawalStrategy: 'percentage',
-      withdrawalRate: 4,
-      fixedMonthlyWithdrawal: 2000,
-      withdrawalStartAge: 62
-    };
-  } else {
-    // Initialize with defaults if not set
-    if (data.traditionalBalance === undefined) data.traditionalBalance = 0;
-    if (data.rothBalance === undefined) data.rothBalance = 0;
-    if (data.contributionRate === undefined) data.contributionRate = 5;
-    if (data.contributionRateRoth === undefined) data.contributionRateRoth = 5;
-    if (data.expectedReturn === undefined) data.expectedReturn = 6;
-    if (data.withdrawalStrategy === undefined) data.withdrawalStrategy = 'percentage';
-    if (data.withdrawalRate === undefined) data.withdrawalRate = 4;
-    if (data.fixedMonthlyWithdrawal === undefined) data.fixedMonthlyWithdrawal = 2000;
-    if (data.withdrawalStartAge === undefined) data.withdrawalStartAge = 62;
+    data = {};
   }
   
-  // Convert any string values to numbers
-  data.traditionalBalance = parseFloat(data.traditionalBalance);
-  data.rothBalance = parseFloat(data.rothBalance);
-  data.contributionRate = parseFloat(data.contributionRate);
-  data.contributionRateRoth = parseFloat(data.contributionRateRoth);
-  data.expectedReturn = parseFloat(data.expectedReturn);
-  data.withdrawalRate = parseFloat(data.withdrawalRate);
-  data.fixedMonthlyWithdrawal = parseFloat(data.fixedMonthlyWithdrawal);
-  data.withdrawalStartAge = parseInt(data.withdrawalStartAge, 10);
+  // Set defaults for any missing fields
+  data.traditionalBalance = data.traditionalBalance ?? 400000;
+  data.rothBalance = data.rothBalance ?? 100000;
+  data.contributionRate = data.contributionRate ?? 5;
+  data.contributionRateRoth = data.contributionRateRoth ?? 5;
+  data.expectedReturn = data.expectedReturn ?? 6;
+  data.withdrawalStrategy = data.withdrawalStrategy ?? 'percentage';
+  data.withdrawalRate = data.withdrawalRate ?? 4;
+  data.fixedMonthlyWithdrawal = data.fixedMonthlyWithdrawal ?? 2000;
+  data.withdrawalStartAge = data.withdrawalStartAge ?? 62;
+  
+  // Create local variables for UI binding
+  let traditionalBalance = data.traditionalBalance;
+  let rothBalance = data.rothBalance;
+  let contributionRate = data.contributionRate;
+  let contributionRateRoth = data.contributionRateRoth;
+  let expectedReturn = data.expectedReturn;
+  let withdrawalStrategy = data.withdrawalStrategy;
+  let withdrawalRate = data.withdrawalRate;
+  let fixedMonthlyWithdrawal = data.fixedMonthlyWithdrawal;
+  let withdrawalStartAge = data.withdrawalStartAge;
+  
+  // Update the data object whenever UI fields change
+  $: {
+    data.traditionalBalance = traditionalBalance;
+    data.rothBalance = rothBalance;
+    data.contributionRate = contributionRate;
+    data.contributionRateRoth = contributionRateRoth;
+    data.expectedReturn = expectedReturn;
+    data.withdrawalStrategy = withdrawalStrategy;
+    data.withdrawalRate = withdrawalRate;
+    data.fixedMonthlyWithdrawal = fixedMonthlyWithdrawal;
+    data.withdrawalStartAge = withdrawalStartAge;
+    
+    console.log('TSPSection updating data, tsp data now:', data);
+    
+    // Notify parent component of changes
+    dispatch('update', data);
+  }
   
   
   let loading = false;
@@ -67,6 +80,9 @@
   ];
   
   async function calculateTSPProjection() {
+    // Don't calculate if data isn't initialized
+    if (!data) return;
+    
     try {
       loading = true;
       error = '';
@@ -80,26 +96,24 @@
       
       // Create input object for backend
       const tspInput = new main.TSPInput();
-      // Ensure all numeric values are properly converted to numbers
-      tspInput.currentBalance = parseFloat(data.traditionalBalance || 0) + parseFloat(data.rothBalance || 0);
-      tspInput.traditionalBalance = parseFloat(data.traditionalBalance || 0);
-      tspInput.rothBalance = parseFloat(data.rothBalance || 0);
-      tspInput.annualContribution = parseFloat(annualContribution || 0);
-      tspInput.expectedReturnRate = parseFloat(data.expectedReturn || 0) / 100; // Convert percentage to decimal
-      tspInput.withdrawalStrategy = data.withdrawalStrategy || 'percentage';
-      tspInput.fixedWithdrawalAmount = parseFloat(data.fixedMonthlyWithdrawal || 0) * 12; // Convert to annual
-      tspInput.withdrawalPercentage = parseFloat(data.withdrawalRate || 0) / 100; // Convert percentage to decimal
-      tspInput.withdrawalStartAge = parseInt(data.withdrawalStartAge || 62, 10);
+      // Use data values
+      tspInput.currentBalance = data.traditionalBalance + data.rothBalance;
+      tspInput.traditionalBalance = data.traditionalBalance;
+      tspInput.rothBalance = data.rothBalance;
+      tspInput.annualContribution = annualContribution;
+      tspInput.expectedReturnRate = data.expectedReturn / 100; // Convert percentage to decimal
+      tspInput.withdrawalStrategy = data.withdrawalStrategy;
+      tspInput.fixedWithdrawalAmount = data.fixedMonthlyWithdrawal * 12; // Convert to annual
+      tspInput.withdrawalPercentage = data.withdrawalRate / 100; // Convert percentage to decimal
+      tspInput.withdrawalStartAge = data.withdrawalStartAge;
       
       // Use data from userStore when available
       let userBirthYear, userBirthMonth;
       
-      // Get the latest data from the user store
-      const unsubscribe = userData.subscribe(data => {
-        userBirthYear = data.birthYear;
-        userBirthMonth = data.birthMonth;
-      });
-      unsubscribe(); // Immediately unsubscribe after getting the values
+      // Get the user profile data
+      const userProfile = getUserProfile();
+      userBirthYear = userProfile?.birthYear;
+      userBirthMonth = userProfile?.birthMonth;
       
       // Use the user data or default values
       const currentYear = new Date().getFullYear();
@@ -180,16 +194,18 @@
   }
   
   function getAnnualWithdrawal() {
-    const totalBalance = parseFloat(data.traditionalBalance || 0) + parseFloat(data.rothBalance || 0);
+    if (!data) return 0;
+    
+    const totalBalance = data.traditionalBalance + data.rothBalance;
     
     // First, determine a calculated withdrawal amount based on strategy,
     // even if the simulation doesn't show withdrawals yet
     let calculatedWithdrawal = 0;
     
-    if (data.withdrawalStrategy === 'percentage' && data.withdrawalRate) {
-      calculatedWithdrawal = totalBalance * (parseFloat(data.withdrawalRate) / 100);
-    } else if (data.withdrawalStrategy === 'fixed' && data.fixedMonthlyWithdrawal) {
-      calculatedWithdrawal = parseFloat(data.fixedMonthlyWithdrawal) * 12;
+    if (data.withdrawalStrategy === 'percentage') {
+      calculatedWithdrawal = totalBalance * (data.withdrawalRate / 100);
+    } else if (data.withdrawalStrategy === 'fixed') {
+      calculatedWithdrawal = data.fixedMonthlyWithdrawal * 12;
     } else if (data.withdrawalStrategy === 'rmd') {
       // RMD simplified approximation (divide by years remaining)
       // For ages 59.5 to 72, divide by 25 as a rough approximation
@@ -199,7 +215,7 @@
     // Check for actual withdrawal data in the projection
     if (projectionResult && projectionResult.yearlyData && projectionResult.yearlyData.length > 0) {
       // Find withdrawal year that matches withdrawal start age
-      const withdrawalYear = projectionResult.yearlyData.find(year => year.age >= parseInt(data.withdrawalStartAge));
+      const withdrawalYear = projectionResult.yearlyData.find(year => year.age >= data.withdrawalStartAge);
       
       // If we found a withdrawal year and it has withdrawals, use that value
       if (withdrawalYear && withdrawalYear.withdrawals > 0) {
@@ -217,24 +233,21 @@
     return calculatedWithdrawal;
   }
 
-  // Trigger calculation when relevant inputs change
+  // Calculate TSP projection when needed
+  let calculationTimer;
   $: {
-    if (data.traditionalBalance !== undefined || 
-        data.rothBalance !== undefined || 
-        data.withdrawalStrategy || 
-        data.withdrawalRate || 
-        data.withdrawalStartAge ||
-        data.fixedMonthlyWithdrawal ||
-        data.expectedReturn) {
+    // Debounce calculation to avoid too many API calls
+    clearTimeout(calculationTimer);
+    calculationTimer = setTimeout(() => {
       calculateTSPProjection();
-    }
+    }, 300);
   }
 
   $: annualWithdrawal = getAnnualWithdrawal() || 0;
   $: monthlyWithdrawal = isNaN(annualWithdrawal) ? 0 : annualWithdrawal / 12;
-  $: totalBalance = parseFloat(data.traditionalBalance || 0) + parseFloat(data.rothBalance || 0);
+  $: totalBalance = traditionalBalance + rothBalance;
   $: yearsUntilDepletion = projectionResult.notes?.match(/Balance depleted at age (\d+)/) 
-                            ? parseInt(projectionResult.notes.match(/Balance depleted at age (\d+)/)[1]) - parseInt(data.withdrawalStartAge || 0)
+                            ? parseInt(projectionResult.notes.match(/Balance depleted at age (\d+)/)[1]) - withdrawalStartAge
                             : '30+';
 </script>
 
@@ -255,12 +268,7 @@
             min="0"
             step="10000"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.traditionalBalance}
-            on:change={() => {
-              if (data.traditionalBalance) {
-                data.traditionalBalance = parseFloat(data.traditionalBalance);
-              }
-            }}
+            bind:value={traditionalBalance}
           />
         </div>
       </div>
@@ -279,12 +287,7 @@
             min="0"
             step="10000"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.rothBalance}
-            on:change={() => {
-              if (data.rothBalance) {
-                data.rothBalance = parseFloat(data.rothBalance);
-              }
-            }}
+            bind:value={rothBalance}
           />
         </div>
       </div>
@@ -300,12 +303,7 @@
             min="0"
             max="100"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.contributionRate}
-            on:change={() => {
-              if (data.contributionRate) {
-                data.contributionRate = parseFloat(data.contributionRate);
-              }
-            }}
+            bind:value={contributionRate}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
             <span class="text-gray-500 dark:text-gray-400 sm:text-sm">%</span>
@@ -327,12 +325,7 @@
             min="0"
             max="100"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.contributionRateRoth}
-            on:change={() => {
-              if (data.contributionRateRoth) {
-                data.contributionRateRoth = parseFloat(data.contributionRateRoth);
-              }
-            }}
+            bind:value={contributionRateRoth}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
             <span class="text-gray-500 dark:text-gray-400 sm:text-sm">%</span>
@@ -357,12 +350,7 @@
             max="20"
             step="0.1"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.expectedReturn}
-            on:change={() => {
-              if (data.expectedReturn) {
-                data.expectedReturn = parseFloat(data.expectedReturn);
-              }
-            }}
+            bind:value={expectedReturn}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
             <span class="text-gray-500 dark:text-gray-400 sm:text-sm">%</span>
@@ -383,12 +371,7 @@
           min="55"
           max="75"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.withdrawalStartAge}
-          on:change={() => {
-            if (data.withdrawalStartAge) {
-              data.withdrawalStartAge = parseInt(data.withdrawalStartAge, 10);
-            }
-          }}
+          bind:value={withdrawalStartAge}
         />
       </div>
 
@@ -399,7 +382,7 @@
         <select 
           id="withdrawalStrategy"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.withdrawalStrategy}
+          bind:value={withdrawalStrategy}
         >
           {#each withdrawalStrategies as strategy}
             <option value={strategy.value}>{strategy.label}</option>
@@ -407,7 +390,7 @@
         </select>
       </div>
 
-      {#if data.withdrawalStrategy === 'percentage'}
+      {#if withdrawalStrategy === 'percentage'}
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="withdrawalRate">
             Annual Withdrawal Rate
@@ -420,12 +403,7 @@
               max="20"
               step="0.1"
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              bind:value={data.withdrawalRate}
-              on:change={() => {
-                if (data.withdrawalRate) {
-                  data.withdrawalRate = parseFloat(data.withdrawalRate);
-                }
-              }}
+              bind:value={withdrawalRate}
             />
             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
               <span class="text-gray-500 dark:text-gray-400 sm:text-sm">%</span>
@@ -435,7 +413,7 @@
             Enter as whole number (e.g. 4 for 4%)
           </p>
         </div>
-      {:else if data.withdrawalStrategy === 'fixed'}
+      {:else if withdrawalStrategy === 'fixed'}
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="fixedMonthlyWithdrawal">
             Fixed Monthly Withdrawal
@@ -450,12 +428,7 @@
               min="0"
               step="100"
               class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              bind:value={data.fixedMonthlyWithdrawal}
-              on:change={() => {
-                if (data.fixedMonthlyWithdrawal) {
-                  data.fixedMonthlyWithdrawal = parseFloat(data.fixedMonthlyWithdrawal);
-                }
-              }}
+              bind:value={fixedMonthlyWithdrawal}
             />
           </div>
         </div>

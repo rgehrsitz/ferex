@@ -2,8 +2,36 @@
   import { CalculateTaxLiability } from '../../wailsjs/go/main/App';
   import { main } from '../../wailsjs/go/models';
   import type { TaxData } from '../types/scenario';
+  import { createEventDispatcher } from 'svelte';
   
   export let data: TaxData;
+  
+  const dispatch = createEventDispatcher();
+  
+  // Ensure data is initialized with defaults
+  if (!data) {
+    data = {} as TaxData;
+  }
+  
+  // Set defaults for any missing fields
+  data.filingStatus = data.filingStatus || 'single';
+  data.stateOfResidence = data.stateOfResidence || 'MD';
+  data.stateIncomeTaxRate = data.stateIncomeTaxRate ?? 5;
+  data.itemizedDeductions = data.itemizedDeductions ?? 0;
+  data.federalTaxCredits = data.federalTaxCredits ?? 0;
+  data.stateTaxCredits = data.stateTaxCredits ?? 0;
+  data.age = data.age ?? 65;
+  data.spouseAge = data.spouseAge ?? 65;
+  
+  // Create local variables for UI binding
+  let filingStatus = data.filingStatus;
+  let stateOfResidence = data.stateOfResidence;
+  let stateIncomeTaxRate = data.stateIncomeTaxRate;
+  let itemizedDeductions = data.itemizedDeductions;
+  let federalTaxCredits = data.federalTaxCredits;
+  let stateTaxCredits = data.stateTaxCredits;
+  let age = data.age;
+  let spouseAge = data.spouseAge;
   
   let loading = false;
   let error = '';
@@ -84,6 +112,21 @@
     { value: 'DC', label: 'District of Columbia' }
   ];
   
+  // Update the data object whenever UI variables change
+  $: {
+    data.filingStatus = filingStatus;
+    data.stateOfResidence = stateOfResidence;
+    data.stateIncomeTaxRate = stateIncomeTaxRate;
+    data.itemizedDeductions = itemizedDeductions;
+    data.federalTaxCredits = federalTaxCredits;
+    data.stateTaxCredits = stateTaxCredits;
+    data.age = age;
+    data.spouseAge = spouseAge;
+    
+    // Notify parent component of changes
+    dispatch('update', data);
+  }
+  
   async function calculateTaxes() {
     try {
       loading = true;
@@ -91,19 +134,19 @@
       
       // Create input object for backend
       const taxInput = new main.TaxInput();
-      taxInput.filingStatus = data.filingStatus;
-      taxInput.stateOfResidence = data.stateOfResidence;
-      taxInput.stateIncomeTaxRate = data.stateIncomeTaxRate;
+      taxInput.filingStatus = filingStatus;
+      taxInput.stateOfResidence = stateOfResidence;
+      taxInput.stateIncomeTaxRate = stateIncomeTaxRate;
       taxInput.totalIncome = sampleAnnualIncome;
       taxInput.pensionIncome = samplePensionIncome;
       taxInput.socialSecurityIncome = sampleSocialSecurityIncome;
       taxInput.tspWithdrawals = sampleTSPWithdrawals;
       taxInput.nonTaxableIncome = 0;
-      taxInput.itemizedDeductions = data.itemizedDeductions;
-      taxInput.federalTaxCredits = data.federalTaxCredits;
-      taxInput.stateTaxCredits = data.stateTaxCredits;
-      taxInput.age = data.age;
-      taxInput.spouseAge = data.spouseAge;
+      taxInput.itemizedDeductions = itemizedDeductions;
+      taxInput.federalTaxCredits = federalTaxCredits;
+      taxInput.stateTaxCredits = stateTaxCredits;
+      taxInput.age = age;
+      taxInput.spouseAge = spouseAge;
       
       // Call backend API
       calculationResult = await CalculateTaxLiability(taxInput);
@@ -118,12 +161,12 @@
 
   // Trigger calculation when relevant inputs change
   $: {
-    if (data.filingStatus !== undefined || 
-        data.stateOfResidence || 
-        data.stateIncomeTaxRate !== undefined ||
-        data.itemizedDeductions !== undefined ||
-        data.age !== undefined ||
-        data.spouseAge !== undefined) {
+    if (filingStatus !== undefined || 
+        stateOfResidence || 
+        stateIncomeTaxRate !== undefined ||
+        itemizedDeductions !== undefined ||
+        age !== undefined ||
+        spouseAge !== undefined) {
       calculateTaxes();
     }
   }
@@ -143,7 +186,8 @@
         <select 
           id="filingStatus"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.filingStatus}
+          bind:value={filingStatus}
+          on:change={() => dispatch('update', data)}
         >
           {#each filingStatusOptions as status}
             <option value={status.value}>{status.label}</option>
@@ -158,7 +202,8 @@
         <select 
           id="stateOfResidence"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.stateOfResidence}
+          bind:value={stateOfResidence}
+          on:change={() => dispatch('update', data)}
         >
           {#each stateOptions as state}
             <option value={state.value}>{state.label}</option>
@@ -178,7 +223,13 @@
             max="15"
             step="0.1"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.stateIncomeTaxRate}
+            bind:value={stateIncomeTaxRate}
+            on:change={() => {
+              if (stateIncomeTaxRate) {
+                stateIncomeTaxRate = parseFloat(stateIncomeTaxRate.toString());
+              }
+              dispatch('update', data);
+            }}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
             <span class="text-gray-500 dark:text-gray-400 sm:text-sm">%</span>
@@ -196,11 +247,17 @@
           min="55"
           max="100"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.age}
+          bind:value={age}
+          on:change={() => {
+            if (age) {
+              age = parseInt(age.toString());
+            }
+            dispatch('update', data);
+          }}
         />
       </div>
       
-      {#if data.filingStatus === 'married_joint'}
+      {#if filingStatus === 'married_joint'}
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="spouseAge">
             Spouse Age
@@ -211,7 +268,13 @@
             min="55"
             max="100"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.spouseAge}
+            bind:value={spouseAge}
+            on:change={() => {
+              if (spouseAge) {
+                spouseAge = parseInt(spouseAge.toString());
+              }
+              dispatch('update', data);
+            }}
           />
         </div>
       {/if}
@@ -232,7 +295,13 @@
             min="0"
             step="500"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.itemizedDeductions}
+            bind:value={itemizedDeductions}
+            on:change={() => {
+              if (itemizedDeductions) {
+                itemizedDeductions = parseFloat(itemizedDeductions.toString());
+              }
+              dispatch('update', data);
+            }}
           />
         </div>
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -254,7 +323,13 @@
             min="0"
             step="100"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.federalTaxCredits}
+            bind:value={federalTaxCredits}
+            on:change={() => {
+              if (federalTaxCredits) {
+                federalTaxCredits = parseFloat(federalTaxCredits.toString());
+              }
+              dispatch('update', data);
+            }}
           />
         </div>
       </div>
@@ -273,7 +348,13 @@
             min="0"
             step="100"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.stateTaxCredits}
+            bind:value={stateTaxCredits}
+            on:change={() => {
+              if (stateTaxCredits) {
+                stateTaxCredits = parseFloat(stateTaxCredits.toString());
+              }
+              dispatch('update', data);
+            }}
           />
         </div>
       </div>
