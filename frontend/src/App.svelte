@@ -1,99 +1,98 @@
+<script context="module" lang="ts">
+  declare const api: {
+    saveScenarios(args: { scenarios: Scenario[]; filename: string }): Promise<{ success: boolean; message: string }>;
+    loadScenarios(args: { filename: string }): Promise<any>;
+  };
+</script>
+
 <script lang="ts">
   import Header from './components/Header.svelte';
   import ScenarioSidebar from './components/ScenarioSidebar.svelte';
   import ScenarioTabs from './components/ScenarioTabs.svelte';
   import CompareView from './components/CompareView.svelte';
   import type { Scenario, ScenarioData } from './types/scenario.js';
+  import { createDefaultScenario } from './utils/createDefaultScenario.js';
 
-  // Import consolidated stores
-  import {
-    scenarios,
-    selectedScenario,
-    compareScenario,
-    addScenario,
-    deleteScenario as deleteScenarioStore,
-    createDefaultScenario,
-    initializeStore,
-    updateScenario as updateScenarioStore
-  } from './stores/scenarioStore.js';
-  import { get } from 'svelte/store';
-  import { selectedScenarioId, compareScenarioId } from './stores/uiStore.js';
-  import { api } from './stores/apiStore.js';
-  import { appData } from './stores/appDataStore.js';
-  import { updateUserProfile, getUserProfile } from './stores/userDataStore.js';
+  // Local state declarations
+  let scenarios: Scenario[] = [createDefaultScenario(1, 'Scenario 1'), createDefaultScenario(2, 'Scenario 2')];
+  let selectedScenarioId: number | null = 1;
+  let compareScenarioId: number | null = null;
+  let filename: string = '';
+  let statusMessage: string = '';
+  let isLoading: boolean = false;
+  let showSaveDialog: boolean = false;
+  let showLoadDialog: boolean = false;
+  let savedFiles: string[] = [];
+  let selectedFile: string = '';
 
-  // Debug: log scenarios store whenever it changes
-  $: console.log('App scenarios store updated', $scenarios); // Svelte 5 idiom: $: for reactive effects
+  // API is declared in <script context="module"> above. Remove duplicate declaration.
 
-  // Initialize the store with default scenarios
-  initializeStore();
+  // Debug: log scenarios array whenever it changes
+  $: console.log('App scenarios updated', scenarios);
+
+// Reactive variable for selected scenario
+$: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
 
   function addScenarioHandler(): void {
-    let currentScenarios;
-    scenarios.subscribe(list => {
-      currentScenarios = list;
-    })();
-    
-    // Generate a new unique ID
-    const maxId = Math.max(...currentScenarios.map(s => s.id), 0);
+    if (!scenarios || scenarios.length === 0) {
+      const newScenario = createDefaultScenario(1, `Scenario 1`);
+      scenarios = [newScenario];
+      selectedScenarioId = 1;
+      compareScenarioId = null;
+      return;
+    }
+    const maxId = Math.max(...scenarios.map((s: Scenario) => s.id), 0);
     const newId = maxId + 1;
-    
-    // Create a new scenario with a unique ID and default name
     const newScenario = createDefaultScenario(newId, `Scenario ${newId}`);
-    addScenario(newScenario);
-    
-    selectedScenarioId.set(newId);
-    compareScenarioId.set(null);
+    scenarios = [...scenarios, newScenario];
+    selectedScenarioId = newId;
+    compareScenarioId = null;
   }
 
   function duplicateScenarioHandler(id: number): void {
-    let orig;
-    let currentScenarios;
-    scenarios.subscribe(list => {
-      orig = list.find(s => s.id === id);
-      currentScenarios = list;
-    })();
-    
+    const orig = scenarios.find((s: Scenario) => s.id === id);
     if (!orig) return;
-    
-    // Generate a new unique ID
-    const maxId = Math.max(...currentScenarios.map(s => s.id), 0);
+    const maxId = Math.max(...scenarios.map((s: Scenario) => s.id), 0);
     const newId = maxId + 1;
-    
-    const clone = createDefaultScenario(newId, `${orig.name} Copy`);
-    clone.data = JSON.parse(JSON.stringify(orig.data));
-    
-    // Add the scenario and set it as selected
-    addScenario(clone);
-    selectedScenarioId.set(newId);
+    const newScenario = { ...orig, id: newId };
+    scenarios = [...scenarios, newScenario];
+    selectedScenarioId = newId;
+    compareScenarioId = null;
   }
 
   function deleteScenarioHandler(id: number): void {
-    deleteScenarioStore(id);
-  }
-  
-  function renameScenarioHandler(event): void {
-    const { id, name } = event.detail;
-    
-    // Find the scenario to rename
-    let scenario;
-    scenarios.subscribe(list => {
-      scenario = list.find(s => s.id === id);
-    })();
-    
-    if (!scenario) return;
-    
-    // Create updated scenario with new name
-    const updatedScenario = {
-      ...scenario,
-      name: name
-    };
-    
-    // Update the scenario in the store
-    updateScenarioStore(updatedScenario);
+    scenarios = scenarios.filter((s: Scenario) => s.id !== id);
+    if (selectedScenarioId === id) selectedScenarioId = scenarios.length ? scenarios[0].id : null;
+    if (compareScenarioId === id) compareScenarioId = null;
   }
 
-  async function saveScenarios() {
+  function renameScenarioHandler({ id, name }: { id: number; name: string }): void {
+    scenarios = scenarios.map((s: Scenario) => s.id === id ? { ...s, name } : s);
+  }
+
+  function selectScenario(id: number): void {
+    if (selectedScenarioId === id) {
+      selectedScenarioId = null;
+      setTimeout(() => {
+        selectedScenarioId = id;
+      }, 0);
+    } else {
+      selectedScenarioId = id;
+    }
+    compareScenarioId = null;
+  }
+
+  function selectCompare(id: number): void {
+    compareScenarioId = id;
+  }
+
+  function handleUpdateScenario(scenario: Scenario): void {
+    scenarios = scenarios.map((s: Scenario) => s.id === scenario.id ? scenario : s);
+  }
+
+  // handleSave and handleLoad already defined below. Remove duplicate implementations.
+
+  async function saveScenarios(): Promise<void> {
     if (!filename) {
       statusMessage = "Please enter a filename.";
       return;
@@ -101,32 +100,23 @@
 
     try {
       isLoading = true;
-      
-      // Get a snapshot of the current scenarios from the store
-      let scenariosList;
-      scenarios.subscribe(list => {
-        // Make a deep copy to avoid reference issues
-        scenariosList = JSON.parse(JSON.stringify(list));
-      })();
-      
+      // Make a deep copy to avoid reference issues
+      const scenariosList = JSON.parse(JSON.stringify(scenarios));
       console.log('Saving scenarios payload', JSON.stringify(scenariosList, null, 2));
-      
       // Make sure filename has .json extension
       let filenameToSave = filename;
       if (!filenameToSave.endsWith('.json')) {
         filenameToSave += '.json';
       }
-      
       // Add additional logs for debugging
-      console.log('Scenarios store content before saving:', $scenarios);
-      console.log('Selected scenario data before saving:', $selectedScenario?.data);
-      console.log('Pension data of selected scenario:', $selectedScenario?.data?.pension);
-      
+      const selectedScenario = scenarios.find(s => s.id === selectedScenarioId);
+      console.log('Scenarios content before saving:', scenariosList);
+      console.log('Selected scenario data before saving:', selectedScenario?.data);
+      console.log('Pension data of selected scenario:', selectedScenario?.data?.pension);
       const result = await api.saveScenarios({
         scenarios: scenariosList,
         filename: filenameToSave
       });
-      
       if (result.success) {
         statusMessage = result.message;
         setTimeout(() => {
@@ -164,7 +154,7 @@
         return;
       }
       // get scenarios array
-      const list = payload.scenarios ?? payload;
+      const list: Scenario[] = payload.scenarios ?? payload;
       if (!Array.isArray(list)) {
         console.warn('Unexpected payload.scenarios', payload);
         statusMessage = 'Error: invalid data';
@@ -176,7 +166,7 @@
       
       // Validate and fix scenario IDs to ensure uniqueness
       const idMap = new Map();
-      deepClonedList.forEach(scenario => {
+      deepClonedList.forEach((scenario: Scenario) => {
         // If ID is missing, zero, or already used, assign a new one
         if (!scenario.id || scenario.id === 0 || idMap.has(scenario.id)) {
           // Find an unused ID
@@ -196,10 +186,68 @@
       // Validate and ensure all required data sections exist in each scenario
       if (deepClonedList.length > 0) {
         // Check each scenario for possible issues and ensure all required data sections exist
-        deepClonedList.forEach(scenario => {
+        deepClonedList.forEach((scenario: Scenario) => {
           if (!scenario.data) {
             console.warn(`Scenario ${scenario.id} (${scenario.name}) has no data property`);
-            scenario.data = {}; // Initialize data object if missing
+            scenario.data = {
+  pension: {
+    system: 'FERS',
+    high3Salary: 100000,
+    yearsOfService: 30,
+    ageAtRetirement: 62,
+    unusedSickLeaveMonths: 6,
+    survivorBenefitOption: 'full',
+    isPartTime: false,
+    partTimeProrationFactor: 1.0,
+    militaryService: 0
+  },
+  socialSecurity: {
+    startAge: 62,
+    estimatedMonthlyBenefit: 2000,
+    isEligible: true,
+    birthYear: 1970,
+    birthMonth: 1
+  },
+  tsp: {
+    traditionalBalance: 400000,
+    rothBalance: 100000,
+    contributionRate: 5,
+    contributionRateRoth: 5,
+    expectedReturn: 6,
+    withdrawalStrategy: 'fixed',
+    fixedMonthlyWithdrawal: 2000,
+    withdrawalRate: 4,
+    withdrawalStartAge: 62
+  },
+  tax: {
+    filingStatus: 'married_joint',
+    stateOfResidence: 'VA',
+    stateIncomeTaxRate: 0.05,
+    itemizedDeductions: 0,
+    federalTaxCredits: 0,
+    stateTaxCredits: 0,
+    age: 62,
+    spouseAge: 62
+  },
+  cola: {
+    assumedInflationRate: 2.5,
+    applyCOLAToPension: true,
+    applyColaToSocialSecurity: true
+  },
+  otherIncome: {
+    sources: [
+      {
+        id: crypto.randomUUID(),
+        name: 'Part-time work',
+        amount: 1200,
+        frequency: 'monthly',
+        startAge: 62,
+        endAge: 70,
+        applyCola: true
+      }
+    ]
+  }
+};
           }
           
           // Ensure all data sections exist with defaults
@@ -249,9 +297,12 @@
             scenario.data.tax = {
               filingStatus: 'married_joint',
               stateOfResidence: 'VA',
-              additionalIncome: 0,
-              additionalDeductions: 0,
-              stateIncomeTaxRate: 0.05
+              stateIncomeTaxRate: 0.05,
+              itemizedDeductions: 0,
+              federalTaxCredits: 0,
+              stateTaxCredits: 0,
+              age: 62,
+              spouseAge: 62
             };
           }
           
@@ -283,18 +334,17 @@
         });
       }
       
-      appData.update(d => ({ ...d, scenarios: deepClonedList }));
-      
-      // Force selection to trigger reactivity
-      selectedScenarioId.set(null);
-      compareScenarioId.set(null);
+      // Legacy store logic removed. State is managed via local variables only.
+      // If needed, force selection to trigger reactivity:
+      selectedScenarioId = null;
+      compareScenarioId = null;
       
       // Then set the first scenario as selected (if any) with a longer delay
       // to ensure the store is updated with the new scenarios first
       if (deepClonedList.length > 0) {
         console.log('Setting first scenario after load to:', deepClonedList[0].id);
         setTimeout(() => {
-          selectedScenarioId.set(deepClonedList[0].id);
+          selectedScenarioId = deepClonedList[0].id;
         }, 100);
       }
       statusMessage = payload.message || 'Loaded successfully.';
@@ -313,92 +363,19 @@
   // Show the Save dialog
   function handleSave(): void {
     showSaveDialog = true;
-    statusMessage = "";
   }
 
-  // Show the Load dialog and fetch saved file list
-  async function handleLoad(): Promise<void> {
+  // Show the Load dialog
+  function handleLoad(): void {
     showLoadDialog = true;
-    statusMessage = "";
-    isLoading = true;
-    try {
-      const response = await api.getSavedScenarios();
-      console.log('getSavedScenarios response', response);
-      // Wails bindings often wrap data in a `result` field
-      const payload = response?.result ?? response;
-      if (Array.isArray(payload)) {
-        savedFiles = payload;
-      } else if (Array.isArray(payload.files)) {
-        savedFiles = payload.files;
-      } else {
-        console.warn('Unexpected payload for saved files', payload);
-        savedFiles = [];
-      }
-    } catch (err) {
-      console.error('Error fetching saved files:', err);
-      statusMessage = 'Error fetching saved files.';
-    } finally {
-      isLoading = false;
-    }
   }
 
-  // State variables for file management dialogs
-  let showSaveDialog = false;
-  let showLoadDialog = false;
-  let filename = "my_scenarios";
-  let savedFiles: string[] = [];
-  let selectedFile = "";
-  let statusMessage = "";
-  let isLoading = false;
-
-  function selectScenario(id: number): void { 
-    console.log('App.selectScenario called with id:', id);
-    
-    // Force reactivity by setting to null first if it's the same scenario
-    if (get(selectedScenarioId) === id) {
-      selectedScenarioId.set(null);
-      setTimeout(() => {
-        selectedScenarioId.set(id);
-      }, 0);
-    } else {
-      selectedScenarioId.set(id);
-    }
-    
-    compareScenarioId.set(null); 
-  }
-
-  function selectCompare(id: number): void { 
-    compareScenarioId.set(id); 
-  }
-
-  // Handle scenario updates from child sections
-  function handleUpdateScenario(event): void {
-    console.log('App.handleUpdateScenario received', event.detail);
-    
-    // Make sure we're getting valid pension data
-    if (event.detail?.data?.pension) {
-      console.log('Pension data being saved:', event.detail.data.pension);
-    }
-    
-    // Ensure we're passing a complete scenario object and not just a reference
-    const updatedScenario = JSON.parse(JSON.stringify(event.detail));
-    console.log('App updating scenario store with:', updatedScenario);
-    
-    // Use a separate variable to check if currentScenarioId matches the updated scenario
-    // This helps prevent updating the wrong scenario
-    const currentId = get(selectedScenarioId);
-    if (updatedScenario.id !== currentId) {
-      console.warn(`Updated scenario ID (${updatedScenario.id}) doesn't match current selectedScenarioId (${currentId})`);
-    }
-    
-    updateScenarioStore(updatedScenario);
-  }
   
   // Handle global calculation request
   function handleGlobalCalculate(): void {
     console.log('App.handleGlobalCalculate triggered');
     
-    if (!$selectedScenario) {
+    if (!selectedScenarioId) {
       console.warn('No scenario selected, cannot calculate');
       return;
     }
@@ -406,7 +383,7 @@
     // Send an event to ScenarioTabs to trigger calculation in all sections
     // We'll create a custom event for this that will be captured by ScenarioTabs
     const calculationEvent = new CustomEvent('global-calculate', {
-      detail: { scenarioId: $selectedScenario.id }
+      detail: { scenarioId: selectedScenarioId }
     });
     
     // Dispatch the event to the document so it bubbles up
@@ -414,31 +391,41 @@
     
     console.log('Global calculation event dispatched');
   }
+
+
 </script>
 
 <div class="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100" id="main-container">
   <Header 
-    on:save={handleSave}
-    on:load={handleLoad}
-    on:calculate={handleGlobalCalculate}
+    onSave={handleSave}
+    onLoad={handleLoad}
+    onCalculate={handleGlobalCalculate}
   />
   <div class="flex overflow-hidden">
     <ScenarioSidebar
-      scenarios={$scenarios}
-      selectedScenarioId={$selectedScenarioId}
-      compareScenarioId={$compareScenarioId}
-      on:add={addScenarioHandler}
-      on:duplicate={e => duplicateScenarioHandler(e.detail)}
-      on:delete={e => deleteScenarioHandler(e.detail)}
-      on:rename={renameScenarioHandler}
-      on:select={e => selectScenario(e.detail)}
-      on:compare={e => selectCompare(e.detail)}
-    />
+      scenarios={scenarios}
+      selectedScenarioId={selectedScenarioId}
+      compareScenarioId={compareScenarioId}
+      onRename={renameScenarioHandler}
+      onSelect={selectScenario}
+      onDuplicate={duplicateScenarioHandler}
+      onDelete={deleteScenarioHandler}
+      onAdd={addScenarioHandler}
+      onCompare={selectCompare}
+    /> <!-- scenarios is always Scenario[], so this is type safe -->
     <main class="flex-1 p-6 overflow-auto">
-      {#if $compareScenario}
-        <CompareView selectedScenario={$selectedScenario} compareScenario={$compareScenario} />
-      {:else if $selectedScenario}
-        <ScenarioTabs scenario={$selectedScenario} on:update-scenario={handleUpdateScenario} />
+      {#if compareScenarioId}
+        <CompareView
+          selectedScenario={scenarios.find((s: Scenario) => s.id === selectedScenarioId) ?? null}
+          compareScenario={scenarios.find((s: Scenario) => s.id === compareScenarioId) ?? null}
+        />
+      {:else if selectedScenarioId}
+  {#if foundScenario}
+    <ScenarioTabs
+      scenario={foundScenario}
+      onUpdateScenario={handleUpdateScenario}
+    />
+  {/if}
       {:else}
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
           <p class="text-gray-700 dark:text-gray-300">No scenarios defined.</p>

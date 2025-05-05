@@ -1,10 +1,10 @@
 <script lang="ts">
   import type { OtherIncomeData, OtherIncomeSource } from '../types/scenario.js';
   import { v4 as uuidv4 } from 'uuid';
-  import { createEventDispatcher } from 'svelte';
+  
   import SectionHeader from './SectionHeader.svelte';
   
-  const dispatch = createEventDispatcher();
+  export const onUpdate: (data: any) => void = () => {};
   
   export let data: OtherIncomeData = {
     sources: []
@@ -56,7 +56,7 @@
       data.sources = JSON.parse(JSON.stringify(displaySources));
       
       // Notify parent component of changes
-      dispatch('update', data);
+      onUpdate(data);
     } else {
       // Make sure we have at least one source
       if (data.sources.length === 0) {
@@ -71,7 +71,7 @@
         }];
         
         // Notify parent component of changes
-        dispatch('update', data);
+        onUpdate(data);
       }
       
       // Update display sources from data
@@ -107,7 +107,7 @@
     console.log('Added new income source. Total sources:', displaySources.length);
     
     // Notify parent component of changes
-    dispatch('update', data);
+    onUpdate(data);
   }
 
   function removeIncomeStream(id: string) {
@@ -135,7 +135,7 @@
     totalAnnualIncome = calculateTotalAnnualIncome();
     
     // Notify parent component of changes
-    dispatch('update', data);
+    onUpdate(data);
   }
 
   function calculateTotalAnnualIncome() {
@@ -188,7 +188,7 @@
                 // Update the original data on change
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
-                dispatch('update', data);
+                onUpdate(data);
               }}
             />
           </div>
@@ -204,7 +204,7 @@
               on:change={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
-                dispatch('update', data);
+                onUpdate(data);
               }}
             >
               {#each frequencyOptions as option}
@@ -231,7 +231,7 @@
               on:change={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
-                dispatch('update', data);
+                onUpdate(data);
               }}
               />
             </div>
@@ -251,7 +251,7 @@
               on:change={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
-                dispatch('update', data);
+                onUpdate(data);
               }}
             />
           </div>
@@ -270,7 +270,7 @@
               on:change={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
-                dispatch('update', data);
+                onUpdate(data);
               }}
             />
           </div>
@@ -286,7 +286,7 @@
               on:change={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
-                dispatch('update', data);
+                onUpdate(data);
               }}
             />
             <label for={`cola-${source.id}`} class="ml-2 block text-sm text-gray-700 dark:text-gray-300">

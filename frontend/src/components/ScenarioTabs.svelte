@@ -5,11 +5,11 @@
   import TaxSection from './TaxSection.svelte';
   import COLASection from './COLASection.svelte';
   import OtherIncomeSection from './OtherIncomeSection.svelte';
-  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-  
-  const dispatch = createEventDispatcher();
-  export let scenario: any;
-  
+  import { onMount, onDestroy } from 'svelte';
+
+  export let scenario: import('../types/scenario.js').Scenario;
+  export let onUpdateScenario: (updatedScenario: import('../types/scenario.js').Scenario) => void;
+
   // Now we'll track a tab per scenario to avoid losing state
   let tabsByScenario: Record<string, string> = {};
 
@@ -23,7 +23,7 @@
   }
   
   let componentRefs: Record<string, any> = {}; // Store references to components
-  let currentScenarioId: string | null = null; // Track if scenario ID has changed
+  let currentScenarioId: string | number | null = null; // Track if scenario ID has changed
   
   // Track when scenario changes to reset component refs
   $: if (scenario && scenario.id !== currentScenarioId) {
@@ -121,12 +121,7 @@
   });
 
   // Emit scenario update on child section changes - simpler approach with less overhead
-  function handleSectionUpdate(prop: string, updatedData: any): void {
-    // Update the local scenario copy
-    if (!scenario.data[prop]) {
-      scenario.data[prop] = {};
-    }
-    
+  function handleSectionUpdate<K extends keyof import('../types/scenario.js').ScenarioData>(prop: K, updatedData: import('../types/scenario.js').ScenarioData[K]): void {
     // Create updated scenario with the new data
     const newScenario = {
       ...scenario,
@@ -135,9 +130,8 @@
         [prop]: updatedData
       }
     };
-    
     // Dispatch update to parent
-    dispatch('update-scenario', newScenario);
+    onUpdateScenario(newScenario);
   }
 </script>
 
@@ -198,13 +192,13 @@
       <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
         <svelte:component
           this={t.comp}
-          data={scenario.data[t.prop]}
+          data={(scenario.data as any)[t.prop]}
           scenarioId={scenario.id}
           scenarioName={scenario.name}
-          on:update={e => handleSectionUpdate(t.prop, e.detail)}
+          on:update={e => handleSectionUpdate(t.prop as keyof import('../types/scenario.js').ScenarioData, e.detail)}
           bind:this={componentRefs[t.prop]}
-          currentAge={t.prop === 'tax' && scenario.data.socialSecurity?.birthYear 
-            ? new Date().getFullYear() - scenario.data.socialSecurity.birthYear 
+          currentAge={t.prop === 'tax' && (scenario.data as any).socialSecurity?.birthYear 
+            ? new Date().getFullYear() - (scenario.data as any).socialSecurity.birthYear 
             : undefined}
         />
       </div>

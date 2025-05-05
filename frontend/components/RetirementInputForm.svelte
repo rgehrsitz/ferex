@@ -1,5 +1,4 @@
 <script lang="ts">
-import { createEventDispatcher } from 'svelte';
 // Svelte 5 idioms: use runes for reactivity
 
 interface RetirementInput {
@@ -34,10 +33,10 @@ let input: RetirementInput = {
 
 $: input; // Svelte 5 rune for reactivity
 
-const dispatch = createEventDispatcher();
+export let onSubmit: (input: RetirementInput) => void;
 
 function submitForm() {
-  dispatch('submit', input);
+  onSubmit?.(input);
 }
 </script>
 

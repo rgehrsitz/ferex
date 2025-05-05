@@ -1,8 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { createEventDispatcher } from 'svelte';
 
-  const dispatch = createEventDispatcher();
+  // Svelte V5 idiom: use callback props for parent communication
+  export let onSave: () => void;
+  export let onLoad: () => void;
+  export let onCalculate: () => void;
+
   let darkMode: boolean = false;
   let isCalculating: boolean = false;
 
@@ -73,16 +76,16 @@
   }
   
   function handleSaveClick() {
-    dispatch('save');
+    onSave();
   }
   
   function handleLoadClick() {
-    dispatch('load');
+    onLoad();
   }
   
   function handleCalculateClick() {
     isCalculating = true;
-    dispatch('calculate');
+    onCalculate();
     // Reset the calculating state after a short delay
     setTimeout(() => {
       isCalculating = false;

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  
   import { CalculatePension } from '../../wailsjs/go/main/App.js';
   import { main } from '../../wailsjs/go/models.js';
   import type { PensionData } from '../types/scenario.js';
   import SectionHeader from './SectionHeader.svelte';
 
-  const dispatch = createEventDispatcher();
+  export const onUpdate: (data: any) => void = () => {};
   export let data: PensionData;
   export let scenarioName: string;
 
@@ -52,7 +52,7 @@
   $: data.unusedSickLeaveMonths = unusedSickLeaveMonths;
   $: data.survivorBenefitOption = survivorBenefitOption;
   $: data.csrsOffset = csrsOffset;
-  $: dispatch('update', { ...data });
+  $: onUpdate({ ...data });
 
   // Options for dropdowns
   const retirementSystems = [
@@ -94,7 +94,7 @@
     }
     
     // Notify parent component only once
-    dispatch('update', { ...data });
+    onUpdate({ ...data });
     
     // Request calculation
     calculatePension();

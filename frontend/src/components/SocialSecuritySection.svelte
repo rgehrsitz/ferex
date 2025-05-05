@@ -3,10 +3,10 @@
   import type { SocialSecurityData } from '../types/scenario.js';
   import { api } from '../stores/apiStore.js';
   import { storeCalculationResult, getCalculationResult } from '../stores/calculationStore.js';
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { onMount } from 'svelte';
   import SectionHeader from './SectionHeader.svelte';
   
-  const dispatch = createEventDispatcher();
+  export const onUpdate: (data: any) => void = () => {};
   
   export let data: SocialSecurityData;
   export let scenarioId: number;
@@ -48,7 +48,7 @@
   $: data.isEligible = isEligible;
   $: data.birthYear = birthYear;
   $: data.birthMonth = birthMonth;
-  $: dispatch('update', { ...data });
+  $: onUpdate({ ...data });
 
   // Handle all field changes in a single function
   function handleFieldChange() {
@@ -61,8 +61,8 @@
     
     console.log('SocialSecuritySection updating data:', data);
     
-    // Dispatch update immediately
-    dispatch('update', { ...data });
+    
+    onUpdate({ ...data });
     
     // Try to calculate on change
     checkAndCalculate();
@@ -197,7 +197,7 @@
         if (!data.estimatedMonthlyBenefit && calculationResult.claimingMonthlyAmount) {
           estimatedMonthlyBenefit = calculationResult.claimingMonthlyAmount;
           data.estimatedMonthlyBenefit = estimatedMonthlyBenefit;
-          dispatch('update', { ...data });
+          onUpdate({ ...data });
         }
       } else {
         // If no saved result and we have enough data, calculate
@@ -389,7 +389,7 @@
                 data.ssaEstimateAt62 = parseFloat(data.ssaEstimateAt62);
               }
               handleFieldChange();
-              dispatch('update', data);
+              onUpdate?.(data);
             }}
           />
         </div>

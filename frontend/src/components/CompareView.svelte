@@ -1,4 +1,8 @@
 <script lang="ts">
+  // Svelte V5 idioms: props only, no stores
+  export let selectedScenario: import('../types/scenario.js').Scenario | null;
+  export let compareScenario: import('../types/scenario.js').Scenario | null;
+
   import { onMount } from 'svelte';
   import { CalculateRetirementProjection } from '../../wailsjs/go/main/App.js';
   import { main } from '../../wailsjs/go/models.js';
@@ -8,9 +12,6 @@
   import MonthlyIncomeDeltaChart from './charts/SimpleMonthlyDeltaChart.svelte';
   import IncomeSourceChart from './charts/SimpleIncomeSourceChart.svelte';
 
-  export let selectedScenario: Scenario;
-  export let compareScenario: Scenario;
-  
   let loading = false;
   let error = '';
   let selectedProjection: any = null;
@@ -39,7 +40,12 @@
       const scenarioInput1 = createProjectionInput(selectedScenario);
       
       // Create input for second scenario
-      const scenarioInput2 = createProjectionInput(compareScenario);
+      if (!selectedScenario || !compareScenario) {
+  loading = false;
+  error = 'Both scenarios must be selected for comparison.';
+  return;
+}
+const scenarioInput2 = createProjectionInput(compareScenario);
       
       // Run projections in parallel
       const [projection1, projection2] = await Promise.all([
@@ -247,12 +253,12 @@
             {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(netIncomeDifference)}
           </div>
           <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {compareScenario.name} vs {selectedScenario.name}
+            {compareScenario?.name ?? 'N/A'} vs {selectedScenario?.name ?? 'N/A'}
           </div>
         </div>
         
         <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-          <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">{selectedScenario.name} Total</h3>
+          <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">{selectedScenario?.name ?? 'Scenario'} Total</h3>
           <div class="text-2xl font-semibold text-gray-800 dark:text-gray-200 mt-2">
             {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(selectedNetTotal)}
           </div>

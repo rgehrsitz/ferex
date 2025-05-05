@@ -2,12 +2,12 @@
   import { CalculateTaxLiability } from '../../wailsjs/go/main/App.js';
   import { main } from '../../wailsjs/go/models.js';
   import type { TaxData } from '../types/scenario.js';
-  import { createEventDispatcher } from 'svelte';
+  
   import SectionHeader from './SectionHeader.svelte';
   
   export let data: TaxData;
   
-  const dispatch = createEventDispatcher();
+  export const onUpdate: (data: any) => void = () => {};
   
   // Ensure data is initialized with defaults
   if (!data) {
@@ -50,7 +50,7 @@
   $: data.federalTaxCredits = federalTaxCredits;
   $: data.stateTaxCredits = stateTaxCredits;
   $: data.spouseAge = spouseAge;
-  $: dispatch('update', { ...data });
+  $: onUpdate({ ...data });
 
   // We'll get the primary age from the parent component
   export let currentAge = 65; // Default if not provided
@@ -150,7 +150,7 @@
     data.spouseAge = spouseAge;
     
     // Notify parent component of changes
-    dispatch('update', data);
+    onUpdate(data);
   }
   
   async function calculateTaxes() {
@@ -214,7 +214,7 @@
           id="filingStatus"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={filingStatus}
-          on:change={() => dispatch('update', data)}
+          on:change={() => onUpdate(data)}
         >
           {#each filingStatusOptions as status}
             <option value={status.value}>{status.label}</option>
@@ -230,7 +230,7 @@
           id="stateOfResidence"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={stateOfResidence}
-          on:change={() => dispatch('update', data)}
+          on:change={() => onUpdate(data)}
         >
           {#each stateOptions as state}
             <option value={state.value}>{state.label}</option>
@@ -255,7 +255,7 @@
               if (stateIncomeTaxRate) {
                 stateIncomeTaxRate = parseFloat(stateIncomeTaxRate.toString());
               }
-              dispatch('update', data);
+              onUpdate(data);
             }}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -289,7 +289,7 @@
               if (spouseAge) {
                 spouseAge = parseInt(spouseAge.toString());
               }
-              dispatch('update', data);
+              onUpdate(data);
             }}
           />
         </div>
@@ -316,7 +316,7 @@
               if (itemizedDeductions) {
                 itemizedDeductions = parseFloat(itemizedDeductions.toString());
               }
-              dispatch('update', data);
+              onUpdate(data);
             }}
           />
         </div>
@@ -344,7 +344,7 @@
               if (federalTaxCredits) {
                 federalTaxCredits = parseFloat(federalTaxCredits.toString());
               }
-              dispatch('update', data);
+              onUpdate(data);
             }}
           />
         </div>
@@ -369,7 +369,7 @@
               if (stateTaxCredits) {
                 stateTaxCredits = parseFloat(stateTaxCredits.toString());
               }
-              dispatch('update', data);
+              onUpdate(data);
             }}
           />
         </div>

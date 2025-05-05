@@ -6,8 +6,8 @@
   import { getUserProfile } from '../stores/userDataStore.js';
   import SectionHeader from './SectionHeader.svelte';
   
-  import { createEventDispatcher, onMount } from 'svelte';
-  const dispatch = createEventDispatcher();
+  import { onMount } from 'svelte';
+  export const onUpdate: (data: any) => void = () => {};
   
   export let data: TSPData;
   export let scenarioId: number;
@@ -65,7 +65,7 @@
     console.log('TSPSection updating data, tsp data now:', data);
     
     // Notify parent component of changes
-    dispatch('update', data);
+    onUpdate(data);
   }
   
   
