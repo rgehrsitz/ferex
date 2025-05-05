@@ -1,24 +1,25 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte';
   import SimpleChartComponent from './SimpleChartComponent.svelte';
-  
+
   // Props
-  export let selectedProjection = null;
-  export let compareProjection = null;
-  export let selectedScenario = null;
-  export let compareScenario = null;
-  
+  export let selectedProjection: any = null;
+  export let compareProjection: any = null;
+  export let selectedScenario: any = null;
+  export let compareScenario: any = null;
+
   // State
-  let activeScenario = 'A'; // Default to scenario A
-  let chartData = {
-    labels: [],
-    datasets: []
-  };
-  
-  let chartOptions = {
+  let activeScenario: 'A' | 'B' = 'A'; // Default to scenario A
+  let chartData: { labels: string[]; datasets: any[] } = { labels: [], datasets: [] };
+
+  let chartOptions: Record<string, any> = {
     scales: {
       x: {
-        stacked: true
+        stacked: true,
+        title: {
+          display: true,
+          text: 'Age'
+        }
       },
       y: {
         stacked: true,
@@ -27,7 +28,7 @@
           text: 'Monthly Income ($)'
         },
         ticks: {
-          callback: (value) => {
+          callback: (value: number) => {
             return '$' + value.toLocaleString();
           }
         }
@@ -36,37 +37,56 @@
     plugins: {
       legend: {
         position: 'bottom'
+      },
+      tooltip: {
+        callbacks: {
+          title: (context: any) => {
+            return context[0].label;
+          },
+          label: (context: any) => {
+            return `${context.dataset.label}: ${new Intl.NumberFormat('en-US', { 
+              style: 'currency', 
+              currency: 'USD',
+              maximumFractionDigits: 0 
+            }).format(context.raw)}`;
+          },
+          footer: (context: any) => {
+            // Calculate total across all datasets for this x value
+            const total = context.reduce((sum: number, item: any) => sum + item.raw, 0);
+            return `Total: ${new Intl.NumberFormat('en-US', { 
+              style: 'currency', 
+              currency: 'USD',
+              maximumFractionDigits: 0 
+            }).format(total)}`;
+          }
+        }
       }
     }
   };
-  
+
   // Toggle between scenarios
-  function toggleScenario(scenario) {
+  function toggleScenario(scenario: 'A' | 'B') {
     activeScenario = scenario;
     prepareChartData();
   }
-  
+
   // Generate data for the chart
-  function prepareChartData() {
+  function prepareChartData(): void {
     // Get the relevant projection based on active scenario
     const projection = activeScenario === 'A' ? selectedProjection : compareProjection;
-    
     if (!projection?.yearlyData) {
       return;
     }
-    
-    // Basic labels (years)
-    const labels = projection.yearlyData.map(d => d.year.toString());
-    
+    // Use age as the main label for X-axis
+    const ageLabels = projection.yearlyData.map((d: any) => `Age ${d.age}`);
     // Create arrays for different income sources
-    const pensionData = projection.yearlyData.map(d => Math.round(d.pensionIncome / 12));
-    const ssData = projection.yearlyData.map(d => Math.round(d.socialSecurityIncome / 12));
-    const tspData = projection.yearlyData.map(d => Math.round(d.tspWithdrawal / 12));
-    const otherData = projection.yearlyData.map(d => Math.round(d.otherIncome / 12));
-    
+    const pensionData = projection.yearlyData.map((d: any) => Math.round(d.pensionIncome / 12));
+    const ssData = projection.yearlyData.map((d: any) => Math.round(d.socialSecurityIncome / 12));
+    const tspData = projection.yearlyData.map((d: any) => Math.round(d.tspWithdrawal / 12));
+    const otherData = projection.yearlyData.map((d: any) => Math.round(d.otherIncome / 12));
     // Set chart data
     chartData = {
-      labels,
+      labels: ageLabels,
       datasets: [
         {
           label: 'FERS/CSRS Pension',

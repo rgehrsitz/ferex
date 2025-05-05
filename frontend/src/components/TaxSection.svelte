@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { CalculateTaxLiability } from '../../wailsjs/go/main/App';
-  import { main } from '../../wailsjs/go/models';
-  import type { TaxData } from '../types/scenario';
+  import { CalculateTaxLiability } from '../../wailsjs/go/main/App.js';
+  import { main } from '../../wailsjs/go/models.js';
+  import type { TaxData } from '../types/scenario.js';
   import { createEventDispatcher } from 'svelte';
+  import SectionHeader from './SectionHeader.svelte';
   
   export let data: TaxData;
   
@@ -10,7 +11,16 @@
   
   // Ensure data is initialized with defaults
   if (!data) {
-    data = {} as TaxData;
+    data = {
+      filingStatus: 'single',
+      stateOfResidence: '',
+      stateIncomeTaxRate: 0,
+      itemizedDeductions: 0,
+      federalTaxCredits: 0,
+      stateTaxCredits: 0,
+      spouseAge: 0,
+      age: 0
+    };
   }
   
   // Set defaults for any missing fields
@@ -20,7 +30,7 @@
   data.itemizedDeductions = data.itemizedDeductions ?? 0;
   data.federalTaxCredits = data.federalTaxCredits ?? 0;
   data.stateTaxCredits = data.stateTaxCredits ?? 0;
-  data.age = data.age ?? 65;
+  // Note: Age is now derived from Social Security data in the parent component
   data.spouseAge = data.spouseAge ?? 65;
   
   // Create local variables for UI binding
@@ -30,8 +40,24 @@
   let itemizedDeductions = data.itemizedDeductions;
   let federalTaxCredits = data.federalTaxCredits;
   let stateTaxCredits = data.stateTaxCredits;
-  let age = data.age;
   let spouseAge = data.spouseAge;
+
+  // Svelte 5 idiom: $: for reactivity
+  $: data.filingStatus = filingStatus;
+  $: data.stateOfResidence = stateOfResidence;
+  $: data.stateIncomeTaxRate = stateIncomeTaxRate;
+  $: data.itemizedDeductions = itemizedDeductions;
+  $: data.federalTaxCredits = federalTaxCredits;
+  $: data.stateTaxCredits = stateTaxCredits;
+  $: data.spouseAge = spouseAge;
+  $: dispatch('update', { ...data });
+
+  // We'll get the primary age from the parent component
+  export let currentAge = 65; // Default if not provided
+
+  // Get scenario name for the header
+  export let scenarioName: string = '';
+
   
   let loading = false;
   let error = '';
@@ -120,7 +146,7 @@
     data.itemizedDeductions = itemizedDeductions;
     data.federalTaxCredits = federalTaxCredits;
     data.stateTaxCredits = stateTaxCredits;
-    data.age = age;
+    // Don't update age in data object - we'll use currentAge passed in from parent
     data.spouseAge = spouseAge;
     
     // Notify parent component of changes
@@ -145,7 +171,7 @@
       taxInput.itemizedDeductions = itemizedDeductions;
       taxInput.federalTaxCredits = federalTaxCredits;
       taxInput.stateTaxCredits = stateTaxCredits;
-      taxInput.age = age;
+      taxInput.age = currentAge; // Use the age passed from parent (derived from birth year)
       taxInput.spouseAge = spouseAge;
       
       // Call backend API
@@ -165,7 +191,7 @@
         stateOfResidence || 
         stateIncomeTaxRate !== undefined ||
         itemizedDeductions !== undefined ||
-        age !== undefined ||
+        currentAge !== undefined ||
         spouseAge !== undefined) {
       calculateTaxes();
     }
@@ -177,6 +203,7 @@
 </script>
 
 <div>
+  <SectionHeader sectionName="Tax Calculator" {scenarioName} />
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="space-y-4">
       <div>
@@ -238,23 +265,12 @@
       </div>
       
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="age">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Your Age
         </label>
-        <input
-          id="age"
-          type="number"
-          min="55"
-          max="100"
-          class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={age}
-          on:change={() => {
-            if (age) {
-              age = parseInt(age.toString());
-            }
-            dispatch('update', data);
-          }}
-        />
+        <div class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-md text-gray-800 dark:text-gray-200">
+          {currentAge} <span class="text-xs text-gray-500 dark:text-gray-400">(from birth year in Social Security tab)</span>
+        </div>
       </div>
       
       {#if filingStatus === 'married_joint'}

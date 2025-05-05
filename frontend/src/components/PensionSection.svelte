@@ -3,13 +3,25 @@
   import { CalculatePension } from '../../wailsjs/go/main/App.js';
   import { main } from '../../wailsjs/go/models.js';
   import type { PensionData } from '../types/scenario.js';
+  import SectionHeader from './SectionHeader.svelte';
 
   const dispatch = createEventDispatcher();
   export let data: PensionData;
+  export let scenarioName: string;
 
   // Ensure data is initialized with defaults
   if (!data) {
-    data = {};
+    data = {
+      system: 'FERS',
+      high3Salary: 100000,
+      yearsOfService: 30,
+      ageAtRetirement: 62,
+      unusedSickLeaveMonths: 6,
+      isPartTime: false,
+      partTimeProrationFactor: 1.0,
+      survivorBenefitOption: 'full',
+      csrsOffset: false
+    };
   }
   
   // Set defaults for any missing fields
@@ -33,6 +45,15 @@
   // Add custom field for display
   let csrsOffset = data.csrsOffset;
 
+  // Svelte 5 idiom: $: for reactivity
+  $: data.system = retirementSystem;
+  $: data.high3Salary = highThreeSalary;
+  $: data.ageAtRetirement = retirementAge;
+  $: data.unusedSickLeaveMonths = unusedSickLeaveMonths;
+  $: data.survivorBenefitOption = survivorBenefitOption;
+  $: data.csrsOffset = csrsOffset;
+  $: dispatch('update', { ...data });
+
   // Options for dropdowns
   const retirementSystems = [
     { value: 'FERS', label: 'FERS' },
@@ -55,27 +76,28 @@
   let loading = false;
   let error = '';
 
-  // Update retirementSystem when csrsOffset changes
-  $: {
-    // If we're in CSRS_OFFSET mode, update the system when offset changes
-    if (retirementSystem === 'CSRS_OFFSET') {
-      // This is a UI-only value, doesn't directly map to backend
-      data.csrsOffset = csrsOffset;
-    }
-  }
+  // Update just the data object fields without complex reactivity
+  // This is a simpler approach that leverages Svelte's standard binding
   
-  // Update the data object whenever UI fields change
-  $: {
+  // Handle all field changes in a single function
+  function handleFieldChange() {
+    // First update data object
     data.system = retirementSystem;
     data.high3Salary = highThreeSalary;
     data.ageAtRetirement = retirementAge;
     data.unusedSickLeaveMonths = unusedSickLeaveMonths;
     data.survivorBenefitOption = survivorBenefitOption;
     
-    console.log('PensionSection updating data, pension data now:', data);
+    // Special case for CSRS Offset
+    if (retirementSystem === 'CSRS_OFFSET') {
+      data.csrsOffset = csrsOffset;
+    }
     
-    // Notify parent component of changes
-    dispatch('update', data);
+    // Notify parent component only once
+    dispatch('update', { ...data });
+    
+    // Request calculation
+    calculatePension();
   }
 
   // Calculate pension when data changes
@@ -94,14 +116,14 @@
       
       // Create input object for backend
       const pensionInput = new main.PensionInput();
-      pensionInput.system = systemValue;
-      pensionInput.high3Salary = data.high3Salary;
-      pensionInput.yearsOfService = data.yearsOfService;
-      pensionInput.ageAtRetirement = data.ageAtRetirement;
-      pensionInput.unusedSickLeaveMonths = data.unusedSickLeaveMonths;
-      pensionInput.survivorBenefitOption = data.survivorBenefitOption;
-      pensionInput.isPartTime = data.isPartTime;
-      pensionInput.partTimeProrationFactor = data.partTimeProrationFactor;
+      pensionInput.system = systemValue ?? '';
+pensionInput.high3Salary = data.high3Salary ?? 0;
+pensionInput.yearsOfService = data.yearsOfService ?? 0;
+pensionInput.ageAtRetirement = data.ageAtRetirement ?? 0;
+pensionInput.unusedSickLeaveMonths = data.unusedSickLeaveMonths ?? 0;
+pensionInput.survivorBenefitOption = data.survivorBenefitOption ?? '';
+pensionInput.isPartTime = data.isPartTime ?? false;
+pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
       
       // Call backend API
       calculationResult = await CalculatePension(pensionInput);
@@ -116,22 +138,14 @@
     }
   }
   
-  // Debounce the pension calculation
-  let calculationTimer;
-  $: {
-    // Reset the timer whenever any data changes
-    clearTimeout(calculationTimer);
-    calculationTimer = setTimeout(() => {
-      calculatePension();
-    }, 300);
-  }
-
+  // Simple reactive statements for derived values
   $: annualPension = calculationResult.annualPension;
   $: monthlyPension = calculationResult.monthlyPension;
 </script>
 
 <!-- Capture input events to bubble across shadow boundaries -->
 <div>
+  <SectionHeader sectionName="Pension Calculator" {scenarioName} />
   <!-- Required fields legend -->
   <div class="mb-4 text-sm text-gray-600 dark:text-gray-400 flex items-center">
     <span class="text-red-500 mr-1">*</span> Required fields for accurate calculations
@@ -146,7 +160,8 @@
         <select 
           id="retirementSystem"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={retirementSystem}
+          bind:value={retirementSystem} 
+          on:change={handleFieldChange}
         >
           {#each retirementSystems as system}
             <option value={system.value}>{system.label}</option>
@@ -169,6 +184,14 @@
             step="1000"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={highThreeSalary}
+            on:change={handleFieldChange}
+            on:input={() => {
+              // For number inputs, update on input too for more responsive feel
+              if (typeof highThreeSalary === 'string') {
+                highThreeSalary = parseFloat(highThreeSalary);
+              }
+              handleFieldChange();
+            }}
           />
         </div>
       </div>
@@ -184,6 +207,7 @@
           step="0.5"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={data.yearsOfService}
+          on:change={handleFieldChange}
         />
       </div>
 
@@ -198,6 +222,7 @@
           max="75"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={retirementAge}
+          on:change={handleFieldChange}
         />
       </div>
     </div>
@@ -213,6 +238,7 @@
           min="0"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={unusedSickLeaveMonths}
+          on:change={handleFieldChange}
         />
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Note: 1 month ≈ 174 hours of sick leave
@@ -230,6 +256,7 @@
           step="0.5"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={data.militaryService}
+          on:change={handleFieldChange}
         />
       </div>
       
@@ -240,6 +267,7 @@
             type="checkbox"
             class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             bind:checked={data.isPartTime}
+            on:change={handleFieldChange}
           />
           <label for="isPartTime" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
             Include Part-time Service
@@ -258,6 +286,7 @@
             step="0.01"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={data.partTimeProrationFactor}
+            on:change={handleFieldChange}
           />
           <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Example: 0.5 for half-time service
@@ -273,6 +302,7 @@
           id="survivorBenefit"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={survivorBenefitOption}
+          on:change={handleFieldChange}
         >
           {#each survivorBenefitOptions as option}
             <option value={option.value}>{option.label}</option>
@@ -287,6 +317,7 @@
             type="checkbox"
             class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             bind:checked={csrsOffset}
+            on:change={handleFieldChange}
           />
           <label for="csrsOffset" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
             Apply CSRS Offset at age 62

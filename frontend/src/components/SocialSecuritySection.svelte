@@ -2,8 +2,9 @@
   import { main } from '../../wailsjs/go/models.js';
   import type { SocialSecurityData } from '../types/scenario.js';
   import { api } from '../stores/apiStore.js';
-  import { storeCalculationResult } from '../stores/calculationStore.js';
-  import { createEventDispatcher } from 'svelte';
+  import { storeCalculationResult, getCalculationResult } from '../stores/calculationStore.js';
+  import { createEventDispatcher, onMount } from 'svelte';
+  import SectionHeader from './SectionHeader.svelte';
   
   const dispatch = createEventDispatcher();
   
@@ -13,7 +14,13 @@
   
   // Ensure data is initialized with defaults
   if (!data) {
-    data = {};
+    data = {
+      startAge: 67,
+      estimatedMonthlyBenefit: 2000,
+      isEligible: true,
+      birthYear: 1970,
+      birthMonth: 1
+    };
   }
   
   // Set defaults for any missing fields
@@ -25,7 +32,7 @@
   
   // Make sure birthMonth is stored as a number
   if (typeof data.birthMonth === 'string') {
-    data.birthMonth = parseInt(data.birthMonth, 10);
+    data.birthMonth = parseInt(String(data.birthMonth), 10);
   }
 
   // Create local variables for UI binding
@@ -34,9 +41,18 @@
   let isEligible = data.isEligible;
   let birthYear = data.birthYear;
   let birthMonth = data.birthMonth;
-  
-  // Update the data object whenever UI fields change
-  $: {
+
+  // Svelte 5 idiom: $: for reactivity
+  $: data.startAge = startAge;
+  $: data.estimatedMonthlyBenefit = estimatedMonthlyBenefit;
+  $: data.isEligible = isEligible;
+  $: data.birthYear = birthYear;
+  $: data.birthMonth = birthMonth;
+  $: dispatch('update', { ...data });
+
+  // Handle all field changes in a single function
+  function handleFieldChange() {
+    // Update data object directly
     data.startAge = startAge;
     data.estimatedMonthlyBenefit = estimatedMonthlyBenefit;
     data.isEligible = isEligible;
@@ -45,8 +61,11 @@
     
     console.log('SocialSecuritySection updating data:', data);
     
-    // Notify parent component of changes
-    dispatch('update', data);
+    // Dispatch update immediately
+    dispatch('update', { ...data });
+    
+    // Try to calculate on change
+    checkAndCalculate();
   }
   
   let loading = false;
@@ -98,12 +117,12 @@
       // Create input object for backend
       const ssInput = new main.SocialSecurityInput();
       // Ensure all numeric values are properly converted to numbers
-      ssInput.startAge = parseInt(data.startAge || 62, 10);
-      ssInput.estimatedMonthlyBenefit = parseFloat(data.estimatedMonthlyBenefit || 0);
+      ssInput.startAge = parseInt(String(data.startAge || 62), 10);
+      ssInput.estimatedMonthlyBenefit = parseFloat(String(data.estimatedMonthlyBenefit || 0));
       ssInput.isEligible = data.isEligible !== undefined ? data.isEligible : true;
-      ssInput.birthYear = parseInt(data.birthYear || 1960, 10);
-      ssInput.birthMonth = parseInt(data.birthMonth || 1, 10);
-      ssInput.currentAge = currentYear - parseInt(data.birthYear || 1960, 10);
+      ssInput.birthYear = parseInt(String(data.birthYear || 1960), 10);
+      ssInput.birthMonth = parseInt(String(data.birthMonth || 1), 10);
+      ssInput.currentAge = currentYear - parseInt(String(data.birthYear || 1960), 10);
       
       // For estimation - default values if not available
       ssInput.estimatedAnnualSalary = 60000; // Default annual salary for estimation
@@ -111,13 +130,13 @@
       
       // If SSA estimates are provided, use them - ensure they're numbers
       if (data.ssaEstimateAt62 && data.ssaEstimateAt62 > 0) {
-        ssInput.userProvidedEstimate62 = parseFloat(data.ssaEstimateAt62);
+        ssInput.userProvidedEstimate62 = parseFloat(String(data.ssaEstimateAt62));
       }
       if (data.ssaEstimateAtFRA && data.ssaEstimateAtFRA > 0) {
-        ssInput.userProvidedEstimateFRA = parseFloat(data.ssaEstimateAtFRA);
+        ssInput.userProvidedEstimateFRA = parseFloat(String(data.ssaEstimateAtFRA));
       }
       if (data.ssaEstimateAt70 && data.ssaEstimateAt70 > 0) {
-        ssInput.userProvidedEstimate70 = parseFloat(data.ssaEstimateAt70);
+        ssInput.userProvidedEstimate70 = parseFloat(String(data.ssaEstimateAt70));
       }
       
       // Call backend API via the store
@@ -149,7 +168,7 @@
         // Check for the specific birthMonth type error from the Go backend
         if (err.message.includes("birthMonth") && err.message.includes("type")) {
           // Fix the type issue and retry
-          data.birthMonth = parseInt(data.birthMonth, 10);
+          data.birthMonth = parseInt(String(data.birthMonth), 10);
           error = "Birth month format fixed. Please try calculating again.";
         } else {
           error = `Error: ${err.message}`;
@@ -163,44 +182,50 @@
     }
   }
 
-  // Track previous values to prevent infinite loops
-  let prevValues = {
-    startAge: data.startAge || 67,
-    estimatedMonthlyBenefit: data.estimatedMonthlyBenefit || 0,
-    birthYear: data.birthYear || 1970,
-    birthMonth: data.birthMonth || 1,
-    ssaEstimateAt62: data.ssaEstimateAt62 || 0,
-    ssaEstimateAtFRA: data.ssaEstimateAtFRA || 0,
-    ssaEstimateAt70: data.ssaEstimateAt70 || 0
-  };
-  
-  // We've removed the automatic calculation trigger
-  // Now we'll only calculate when the user clicks the calculate button
-  // This code still updates the prevValues for tracking purposes
-  $: {
-    // Check if any relevant inputs have changed
-    const hasChanged = 
-      data.startAge !== prevValues.startAge ||
-      data.estimatedMonthlyBenefit !== prevValues.estimatedMonthlyBenefit ||
-      data.birthYear !== prevValues.birthYear ||
-      data.birthMonth !== prevValues.birthMonth ||
-      data.ssaEstimateAt62 !== prevValues.ssaEstimateAt62 ||
-      data.ssaEstimateAtFRA !== prevValues.ssaEstimateAtFRA ||
-      data.ssaEstimateAt70 !== prevValues.ssaEstimateAt70;
-    
-    if (hasChanged) {
-      // Update previous values
-      prevValues = {
-        startAge: data.startAge,
-        estimatedMonthlyBenefit: data.estimatedMonthlyBenefit,
-        birthYear: data.birthYear,
-        birthMonth: data.birthMonth,
-        ssaEstimateAt62: data.ssaEstimateAt62,
-        ssaEstimateAtFRA: data.ssaEstimateAtFRA,
-        ssaEstimateAt70: data.ssaEstimateAt70
-      };
+  // Load saved calculation results when component mounts or scenario changes
+  onMount(async () => {
+    try {
+      // Retrieve previously calculated result from the store
+      const savedResult = await getCalculationResult(scenarioId, 'socialSecurity');
+      console.log('Retrieved saved Social Security calculation for scenario', scenarioId, savedResult);
       
-      // No automatic calculation - we'll let the user click the button
+      if (savedResult) {
+        // Update the calculation result with the stored data
+        calculationResult = savedResult;
+        
+        // Also update the estimated monthly benefit if it was empty
+        if (!data.estimatedMonthlyBenefit && calculationResult.claimingMonthlyAmount) {
+          estimatedMonthlyBenefit = calculationResult.claimingMonthlyAmount;
+          data.estimatedMonthlyBenefit = estimatedMonthlyBenefit;
+          dispatch('update', { ...data });
+        }
+      } else {
+        // If no saved result and we have enough data, calculate
+        checkAndCalculate();
+      }
+    } catch (err) {
+      console.error('Error loading saved calculation:', err);
+    }
+  });
+  
+  // No timers to clean up
+  
+  // Handle scenario changes - load saved calculation when scenario changes
+  $: if (scenarioId) {
+    // Asynchronously get the saved calculation for the new scenario
+    getCalculationResult(scenarioId, 'socialSecurity').then(savedResult => {
+      if (savedResult) {
+        console.log('Scenario changed - loading calculation for new scenario:', scenarioId, savedResult);
+        calculationResult = savedResult;
+      }
+    });
+  }
+  
+  // Simplified auto-calculation approach
+  function checkAndCalculate() {
+    // We can call this on any field change
+    if (data.birthYear && data.startAge) {
+      calculateSocialSecurity();
     }
   }
 
@@ -242,6 +267,7 @@
 </script>
 
 <div data-section="social-security">
+  <SectionHeader sectionName="Social Security Calculator" {scenarioName} />
   <!-- Required fields legend -->
   <div class="mb-4 text-sm text-gray-600 dark:text-gray-400 flex items-center">
     <span class="text-red-500 mr-1">*</span> Required fields for accurate calculations
@@ -262,7 +288,10 @@
           bind:value={birthYear}
           on:change={() => {
             // Ensure stored as number
-            data.birthYear = parseInt(data.birthYear, 10);
+            if (typeof birthYear === 'string') {
+              birthYear = parseInt(birthYear, 10);
+            }
+            handleFieldChange();
           }}
         />
       </div>
@@ -277,7 +306,10 @@
           bind:value={birthMonth}
           on:change={() => {
             // Ensure birthMonth is stored as a number
-            data.birthMonth = parseInt(data.birthMonth, 10);
+            if (typeof birthMonth === 'string') {
+              birthMonth = parseInt(birthMonth, 10);
+            }
+            handleFieldChange();
           }}
         >
           <option value={1}>January</option>
@@ -305,7 +337,10 @@
           bind:value={startAge}
           on:change={() => {
             // Ensure startAge is stored as a number
-            data.startAge = parseInt(data.startAge, 10);
+            if (typeof startAge === 'string') {
+              startAge = parseInt(startAge, 10);
+            }
+            handleFieldChange();
           }}
         >
           {#each ageOptions as option}
@@ -320,6 +355,7 @@
           type="checkbox"
           class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
           bind:checked={isEligible}
+          on:change={handleFieldChange}
         />
         <label for="isEligible" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Eligible for Social Security
@@ -348,11 +384,11 @@
             step="50"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={data.ssaEstimateAt62}
-            on:change={() => dispatch('update', data)}
-            on:change={() => {
-              if (data.ssaEstimateAt62) {
+          on:change={() => {
+              if (data.ssaEstimateAt62 && typeof data.ssaEstimateAt62 === 'string') {
                 data.ssaEstimateAt62 = parseFloat(data.ssaEstimateAt62);
               }
+              handleFieldChange();
               dispatch('update', data);
             }}
           />
@@ -374,11 +410,11 @@
             step="50"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={data.ssaEstimateAtFRA}
-            on:change={() => {
-              if (data.ssaEstimateAtFRA) {
+          on:change={() => {
+              if (data.ssaEstimateAtFRA && typeof data.ssaEstimateAtFRA === 'string') {
                 data.ssaEstimateAtFRA = parseFloat(data.ssaEstimateAtFRA);
               }
-              dispatch('update', data);
+              handleFieldChange();
             }}
           />
         </div>
@@ -399,11 +435,11 @@
             step="50"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={data.ssaEstimateAt70}
-            on:change={() => {
-              if (data.ssaEstimateAt70) {
+          on:change={() => {
+              if (data.ssaEstimateAt70 && typeof data.ssaEstimateAt70 === 'string') {
                 data.ssaEstimateAt70 = parseFloat(data.ssaEstimateAt70);
               }
-              dispatch('update', data);
+              handleFieldChange();
             }}
           />
         </div>

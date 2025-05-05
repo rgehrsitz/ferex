@@ -1,26 +1,21 @@
-<script>
-  import { onMount, onDestroy } from 'svelte';
+<script lang="ts">
+  import { onMount } from 'svelte';
   import Chart from 'chart.js/auto';
   import 'chartjs-plugin-annotation';
-  
+
   // Props
-  export let type = 'line'; // line, bar, pie, etc.
-  export let data = {
-    labels: [],
-    datasets: []
-  };
-  export let options = {};
-  export let height = '400px';
-  
-  let canvas;
-  let chart;
-  
+  export let type: string = 'line'; // line, bar, pie, etc.
+  export let data: { labels: string[]; datasets: any[] } = { labels: [], datasets: [] };
+  export let options: Record<string, any> = {};
+  export let height: string = '400px';
+
+  let canvas: HTMLCanvasElement | null = null;
+  let chart: Chart | null = null;
+
   onMount(() => {
     if (!canvas) return;
-    
-    // Create chart instance
     chart = new Chart(canvas, {
-      type,
+      type: type as any, // Chart.js type
       data,
       options: {
         responsive: true,
@@ -28,19 +23,17 @@
         ...options
       }
     });
-    
     return () => {
       if (chart) chart.destroy();
     };
   });
-  
-  // Update chart when data changes
+
+  // Svelte 5 idiom: $: for reactivity
   $: if (chart && data) {
     chart.data = data;
     chart.update();
   }
-  
-  // Update chart when options change
+
   $: if (chart && options) {
     chart.options = {
       responsive: true,

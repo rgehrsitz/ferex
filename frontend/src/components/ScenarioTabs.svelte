@@ -8,9 +8,29 @@
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   
   const dispatch = createEventDispatcher();
-  export let scenario;
-  let tab = 'Pension';
-  let componentRefs = {}; // Store references to components
+  export let scenario: any;
+  
+  // Now we'll track a tab per scenario to avoid losing state
+  let tabsByScenario: Record<string, string> = {};
+
+  // Svelte 5 idiom: $: for reactivity
+  $: tab = tabsByScenario[scenario?.id] || 'Pension';
+  
+  // Function to set the tab for the current scenario
+  function setTab(newTab: string) {
+    console.log(`Setting tab for scenario ${scenario.id} to ${newTab}`);
+    tabsByScenario = { ...tabsByScenario, [scenario.id]: newTab };
+  }
+  
+  let componentRefs: Record<string, any> = {}; // Store references to components
+  let currentScenarioId: string | null = null; // Track if scenario ID has changed
+  
+  // Track when scenario changes to reset component refs
+  $: if (scenario && scenario.id !== currentScenarioId) {
+    console.log('ScenarioTabs: Scenario changed from', currentScenarioId, 'to', scenario.id);
+    currentScenarioId = scenario.id;
+    componentRefs = {}; // Reset component references
+  }
   
   const tabs = [
     { label: 'Pension', comp: PensionSection, prop: 'pension' },
@@ -22,7 +42,7 @@
   ];
   
   // Listen for global calculate events
-  function handleGlobalCalculate(event) {
+  function handleGlobalCalculate(event: CustomEvent<any>) {
     console.log('ScenarioTabs received global-calculate event', event.detail);
     
     // Check if this event is for the current scenario
@@ -42,7 +62,7 @@
     calculateAllSections();
   }
   
-  function calculateAllSections() {
+  function calculateAllSections(): void {
     console.log('Calculating all sections');
     
     // If we have references to components with calculate methods, call them
@@ -63,10 +83,10 @@
   }
   
   // Status message handling
-  let statusMessage = null;
-  let statusTimeout;
+  let statusMessage: { text: string; type: string } | null = null;
+  let statusTimeout: ReturnType<typeof setTimeout> | null = null;
   
-  function showStatusMessage(message) {
+  function showStatusMessage(message: { text: string; type: string }): void {
     statusMessage = message;
     
     // Clear any existing timeout
@@ -82,34 +102,47 @@
   
   // Lifecycle hooks for event listeners
   onMount(() => {
-    document.addEventListener('global-calculate', handleGlobalCalculate);
+    console.log(`ScenarioTabs for scenario ${scenario.id} mounted - adding event listeners`);
+    document.addEventListener('global-calculate', handleGlobalCalculate as EventListener);
+    return () => {
+      document.removeEventListener('global-calculate', handleGlobalCalculate as EventListener);
+    };
   });
   
   onDestroy(() => {
-    document.removeEventListener('global-calculate', handleGlobalCalculate);
+    console.log(`ScenarioTabs for scenario ${scenario.id} destroyed - removing event listeners`);
+    document.removeEventListener('global-calculate', handleGlobalCalculate as EventListener);
     if (statusTimeout) {
       clearTimeout(statusTimeout);
     }
+    
+    // Clean up any references to this component
+    componentRefs = {};
   });
 
-  // Emit full scenario update on child section changes
-  function handleSectionUpdate(prop, updatedData) {
-    console.log('ScenarioTabs.handleSectionUpdate received', prop, updatedData);
-    console.log('Before update, scenario.data[prop] is', scenario.data[prop]);
+  // Emit scenario update on child section changes - simpler approach with less overhead
+  function handleSectionUpdate(prop: string, updatedData: any): void {
+    // Update the local scenario copy
+    if (!scenario.data[prop]) {
+      scenario.data[prop] = {};
+    }
     
-    // Create a deep clone of the scenario to prevent reference issues
-    const newScenario = JSON.parse(JSON.stringify({
+    // Create updated scenario with the new data
+    const newScenario = {
       ...scenario,
-      data: { ...scenario.data, [prop]: updatedData }
-    }));
+      data: {
+        ...scenario.data,
+        [prop]: updatedData
+      }
+    };
     
-    console.log('ScenarioTabs dispatching update-scenario', newScenario);
-    console.log('New scenario will have pension data:', newScenario.data.pension);
+    // Dispatch update to parent
     dispatch('update-scenario', newScenario);
   }
 </script>
 
 <div>
+  <!-- Tab navigation -->
   <div class="flex border-b border-gray-200 dark:border-gray-700 mb-4">
     {#each tabs as t}
       <button 
@@ -120,7 +153,7 @@
         class:dark:text-gray-400={tab!==t.label} 
         class:hover:text-primary-700={tab!==t.label}
         class:dark:hover:text-primary-300={tab!==t.label}
-        on:click={() => tab=t.label}
+        on:click={() => setTab(t.label)}
       >
         {t.label}
         {#if tab === t.label}
@@ -158,20 +191,23 @@
       </div>
     </div>
   {/if}
+
+  <!-- Tab content -->
   {#each tabs as t}
     {#if tab === t.label}
-      {#key `${tab}-${scenario.id}-${JSON.stringify(scenario.data[t.prop])}`}
-        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-          <svelte:component
-            this={t.comp}
-            data={scenario.data[t.prop]}
-            scenarioId={scenario.id}
-            scenarioName={scenario.name}
-            on:update={e => handleSectionUpdate(t.prop, e.detail)}
-            bind:this={componentRefs[t.prop]}
-          />
-        </div>
-      {/key}
+      <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+        <svelte:component
+          this={t.comp}
+          data={scenario.data[t.prop]}
+          scenarioId={scenario.id}
+          scenarioName={scenario.name}
+          on:update={e => handleSectionUpdate(t.prop, e.detail)}
+          bind:this={componentRefs[t.prop]}
+          currentAge={t.prop === 'tax' && scenario.data.socialSecurity?.birthYear 
+            ? new Date().getFullYear() - scenario.data.socialSecurity.birthYear 
+            : undefined}
+        />
+      </div>
     {/if}
   {/each}
 </div>

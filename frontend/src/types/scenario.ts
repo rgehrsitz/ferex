@@ -11,6 +11,7 @@ export interface PensionData {
   
   // Additional frontend fields
   militaryService?: number; // in years
+  csrsOffset?: boolean;
 }
 
 export interface SocialSecurityData {

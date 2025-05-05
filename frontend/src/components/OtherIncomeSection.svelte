@@ -1,13 +1,16 @@
 <script lang="ts">
-  import type { OtherIncomeData, OtherIncomeSource } from '../types/scenario';
+  import type { OtherIncomeData, OtherIncomeSource } from '../types/scenario.js';
   import { v4 as uuidv4 } from 'uuid';
   import { createEventDispatcher } from 'svelte';
+  import SectionHeader from './SectionHeader.svelte';
   
   const dispatch = createEventDispatcher();
   
   export let data: OtherIncomeData = {
     sources: []
   };
+  export const scenarioId: number = 0;
+  export let scenarioName: string;
   
   // Initialize sources array if it doesn't exist
   if (!data.sources) {
@@ -16,8 +19,9 @@
   
   // Add default income streams if none exist - but only visually, not to the actual data binding
   // This prevents the UI from showing defaults that aren't actually saved
-  let displaySources = [];
+  let displaySources: OtherIncomeSource[] = [];
   
+  // Svelte 5 idiom: use $: for reactivity and let for local state
   // When data.sources changes, update displaySources
   $: {
     // Create a deep copy to avoid direct mutation
@@ -28,7 +32,7 @@
           id: uuidv4(),
           name: 'Part-time work',
           amount: 1200,
-          frequency: 'monthly',
+          frequency: 'monthly' as 'monthly',
           startAge: 62,
           endAge: 70,
           applyCola: true
@@ -41,7 +45,7 @@
           id: uuidv4(),
           name: 'Rental property',
           amount: 1800,
-          frequency: 'monthly',
+          frequency: 'monthly' as 'monthly',
           startAge: 62,
           endAge: 90,
           applyCola: true
@@ -60,7 +64,7 @@
           id: uuidv4(),
           name: 'New Income',
           amount: 1000,
-          frequency: 'monthly',
+          frequency: 'monthly' as 'monthly',
           startAge: 62,
           endAge: 90,
           applyCola: false
@@ -85,7 +89,7 @@
       id: uuidv4(),
       name: 'New Income',
       amount: 1000,
-      frequency: 'monthly',
+      frequency: 'monthly' as 'monthly',
       startAge: 62,
       endAge: 90,
       applyCola: false
@@ -148,6 +152,7 @@
 </script>
 
 <div>
+  <SectionHeader sectionName="Other Income Sources" {scenarioName} />
   <div class="space-y-8">
     {#each displaySources as source, index}
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">

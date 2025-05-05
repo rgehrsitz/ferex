@@ -1,27 +1,30 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte';
   import SimpleChartComponent from './SimpleChartComponent.svelte';
-  
+
   // Props
-  export let selectedProjection = null;
-  export let compareProjection = null;
-  export let selectedScenario = null;
-  export let compareScenario = null;
-  
-  let chartData = {
-    labels: [],
-    datasets: []
-  };
-  
-  let chartOptions = {
+  export let selectedProjection: any = null;
+  export let compareProjection: any = null;
+  export let selectedScenario: any = null;
+  export let compareScenario: any = null;
+
+  let chartData: { labels: string[]; datasets: any[] } = { labels: [], datasets: [] };
+
+  let chartOptions: Record<string, any> = {
     scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Age'
+        }
+      },
       y: {
         title: {
           display: true,
           text: 'Cumulative Income ($)'
         },
         ticks: {
-          callback: (value) => {
+          callback: (value: number) => {
             return '$' + value.toLocaleString();
           }
         }
@@ -30,35 +33,49 @@
     plugins: {
       legend: {
         position: 'top'
+      },
+      tooltip: {
+        callbacks: {
+          title: (context: any) => {
+            return context[0].label;
+          },
+          label: (context: any) => {
+            return `${context.dataset.label}: ${new Intl.NumberFormat('en-US', { 
+              style: 'currency', 
+              currency: 'USD',
+              maximumFractionDigits: 0 
+            }).format(context.raw)}`;
+          }
+        }
       }
     }
   };
-  
+
   // Generate data for the chart
-  function prepareChartData() {
+  function prepareChartData(): void {
     if (!selectedProjection?.yearlyData || !compareProjection?.yearlyData) {
       return;
     }
     
-    // Basic labels (years)
-    const labels = selectedProjection.yearlyData.map(d => d.year.toString());
+    // Use age as the main label for X-axis
+    const ageLabels = selectedProjection.yearlyData.map((d: any) => `Age ${d.age}`);
     
     // Calculate cumulative values
     let cumulativeA = 0;
-    const dataScenarioA = selectedProjection.yearlyData.map(d => {
+    const dataScenarioA = selectedProjection.yearlyData.map((d: any) => {
       cumulativeA += d.netIncome;
       return cumulativeA;
     });
     
     let cumulativeB = 0;
-    const dataScenarioB = compareProjection.yearlyData.map(d => {
+    const dataScenarioB = compareProjection.yearlyData.map((d: any) => {
       cumulativeB += d.netIncome;
       return cumulativeB;
     });
     
     // Set chart data
     chartData = {
-      labels,
+      labels: ageLabels,
       datasets: [
         {
           label: selectedScenario?.name || 'Scenario A',

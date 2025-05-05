@@ -16,35 +16,81 @@
     initializeStore,
     updateScenario as updateScenarioStore
   } from './stores/scenarioStore.js';
+  import { get } from 'svelte/store';
   import { selectedScenarioId, compareScenarioId } from './stores/uiStore.js';
   import { api } from './stores/apiStore.js';
   import { appData } from './stores/appDataStore.js';
   import { updateUserProfile, getUserProfile } from './stores/userDataStore.js';
 
   // Debug: log scenarios store whenever it changes
-  $: console.log('App scenarios store updated', $scenarios);
+  $: console.log('App scenarios store updated', $scenarios); // Svelte 5 idiom: $: for reactive effects
 
   // Initialize the store with default scenarios
   initializeStore();
 
   function addScenarioHandler(): void {
-    const id = addScenario(createDefaultScenario(undefined, undefined));
-    selectedScenarioId.set(id);
+    let currentScenarios;
+    scenarios.subscribe(list => {
+      currentScenarios = list;
+    })();
+    
+    // Generate a new unique ID
+    const maxId = Math.max(...currentScenarios.map(s => s.id), 0);
+    const newId = maxId + 1;
+    
+    // Create a new scenario with a unique ID and default name
+    const newScenario = createDefaultScenario(newId, `Scenario ${newId}`);
+    addScenario(newScenario);
+    
+    selectedScenarioId.set(newId);
     compareScenarioId.set(null);
   }
 
   function duplicateScenarioHandler(id: number): void {
     let orig;
-    scenarios.subscribe(list => orig = list.find(s => s.id === id))();
+    let currentScenarios;
+    scenarios.subscribe(list => {
+      orig = list.find(s => s.id === id);
+      currentScenarios = list;
+    })();
+    
     if (!orig) return;
-    const clone = createDefaultScenario(undefined, `${orig.name} Copy`);
+    
+    // Generate a new unique ID
+    const maxId = Math.max(...currentScenarios.map(s => s.id), 0);
+    const newId = maxId + 1;
+    
+    const clone = createDefaultScenario(newId, `${orig.name} Copy`);
     clone.data = JSON.parse(JSON.stringify(orig.data));
-    const newId = addScenario(clone);
+    
+    // Add the scenario and set it as selected
+    addScenario(clone);
     selectedScenarioId.set(newId);
   }
 
   function deleteScenarioHandler(id: number): void {
     deleteScenarioStore(id);
+  }
+  
+  function renameScenarioHandler(event): void {
+    const { id, name } = event.detail;
+    
+    // Find the scenario to rename
+    let scenario;
+    scenarios.subscribe(list => {
+      scenario = list.find(s => s.id === id);
+    })();
+    
+    if (!scenario) return;
+    
+    // Create updated scenario with new name
+    const updatedScenario = {
+      ...scenario,
+      name: name
+    };
+    
+    // Update the scenario in the store
+    updateScenarioStore(updatedScenario);
   }
 
   async function saveScenarios() {
@@ -127,7 +173,115 @@
       // update central appData store with loaded scenarios
       // Using a deep clone to ensure references are broken
       const deepClonedList = JSON.parse(JSON.stringify(list));
-      console.log('Loading scenarios with deep cloned data:', deepClonedList);
+      
+      // Validate and fix scenario IDs to ensure uniqueness
+      const idMap = new Map();
+      deepClonedList.forEach(scenario => {
+        // If ID is missing, zero, or already used, assign a new one
+        if (!scenario.id || scenario.id === 0 || idMap.has(scenario.id)) {
+          // Find an unused ID
+          let newId = 1;
+          while (idMap.has(newId)) {
+            newId++;
+          }
+          console.log(`Fixing duplicate/invalid scenario ID. Old: ${scenario.id}, New: ${newId}`);
+          scenario.id = newId;
+        }
+        // Mark this ID as used
+        idMap.set(scenario.id, true);
+      });
+      
+      console.log('Loading scenarios with validated IDs:', deepClonedList);
+      
+      // Validate and ensure all required data sections exist in each scenario
+      if (deepClonedList.length > 0) {
+        // Check each scenario for possible issues and ensure all required data sections exist
+        deepClonedList.forEach(scenario => {
+          if (!scenario.data) {
+            console.warn(`Scenario ${scenario.id} (${scenario.name}) has no data property`);
+            scenario.data = {}; // Initialize data object if missing
+          }
+          
+          // Ensure all data sections exist with defaults
+          if (!scenario.data.pension) {
+            console.warn(`Scenario ${scenario.id} (${scenario.name}) is missing pension data - adding defaults`);
+            scenario.data.pension = {
+              system: 'FERS',
+              high3Salary: 100000,
+              yearsOfService: 30,
+              ageAtRetirement: 62,
+              unusedSickLeaveMonths: 6,
+              survivorBenefitOption: 'full',
+              isPartTime: false,
+              partTimeProrationFactor: 1.0,
+              militaryService: 0
+            };
+          }
+          
+          if (!scenario.data.socialSecurity) {
+            console.warn(`Scenario ${scenario.id} (${scenario.name}) is missing socialSecurity data - adding defaults`);
+            scenario.data.socialSecurity = {
+              startAge: 62,
+              estimatedMonthlyBenefit: 2000,
+              isEligible: true,
+              birthYear: 1970,
+              birthMonth: 1
+            };
+          }
+          
+          if (!scenario.data.tsp) {
+            console.warn(`Scenario ${scenario.id} (${scenario.name}) is missing tsp data - adding defaults`);
+            scenario.data.tsp = {
+              traditionalBalance: 400000,
+              rothBalance: 100000,
+              contributionRate: 5,
+              contributionRateRoth: 5,
+              expectedReturn: 6,
+              withdrawalStrategy: 'fixed',
+              fixedMonthlyWithdrawal: 2000,
+              withdrawalRate: 4,
+              withdrawalStartAge: 62
+            };
+          }
+          
+          if (!scenario.data.tax) {
+            console.warn(`Scenario ${scenario.id} (${scenario.name}) is missing tax data - adding defaults`);
+            scenario.data.tax = {
+              filingStatus: 'married_joint',
+              stateOfResidence: 'VA',
+              additionalIncome: 0,
+              additionalDeductions: 0,
+              stateIncomeTaxRate: 0.05
+            };
+          }
+          
+          if (!scenario.data.cola) {
+            console.warn(`Scenario ${scenario.id} (${scenario.name}) is missing cola data - adding defaults`);
+            scenario.data.cola = {
+              assumedInflationRate: 2.5,
+              applyCOLAToPension: true,
+              applyColaToSocialSecurity: true
+            };
+          }
+          
+          if (!scenario.data.otherIncome) {
+            console.warn(`Scenario ${scenario.id} (${scenario.name}) is missing otherIncome data - adding defaults`);
+            scenario.data.otherIncome = {
+              sources: [
+                {
+                  id: crypto.randomUUID(),
+                  name: 'Part-time work',
+                  amount: 1200,
+                  frequency: 'monthly',
+                  startAge: 62,
+                  endAge: 70,
+                  applyCola: true
+                }
+              ]
+            };
+          }
+        });
+      }
       
       appData.update(d => ({ ...d, scenarios: deepClonedList }));
       
@@ -135,11 +289,13 @@
       selectedScenarioId.set(null);
       compareScenarioId.set(null);
       
-      // Then set the first scenario as selected (if any)
-      if (list.length > 0) {
+      // Then set the first scenario as selected (if any) with a longer delay
+      // to ensure the store is updated with the new scenarios first
+      if (deepClonedList.length > 0) {
+        console.log('Setting first scenario after load to:', deepClonedList[0].id);
         setTimeout(() => {
-          selectedScenarioId.set(list[0].id);
-        }, 0);
+          selectedScenarioId.set(deepClonedList[0].id);
+        }, 100);
       }
       statusMessage = payload.message || 'Loaded successfully.';
       setTimeout(() => {
@@ -196,7 +352,18 @@
   let isLoading = false;
 
   function selectScenario(id: number): void { 
-    selectedScenarioId.set(id); 
+    console.log('App.selectScenario called with id:', id);
+    
+    // Force reactivity by setting to null first if it's the same scenario
+    if (get(selectedScenarioId) === id) {
+      selectedScenarioId.set(null);
+      setTimeout(() => {
+        selectedScenarioId.set(id);
+      }, 0);
+    } else {
+      selectedScenarioId.set(id);
+    }
+    
     compareScenarioId.set(null); 
   }
 
@@ -216,6 +383,14 @@
     // Ensure we're passing a complete scenario object and not just a reference
     const updatedScenario = JSON.parse(JSON.stringify(event.detail));
     console.log('App updating scenario store with:', updatedScenario);
+    
+    // Use a separate variable to check if currentScenarioId matches the updated scenario
+    // This helps prevent updating the wrong scenario
+    const currentId = get(selectedScenarioId);
+    if (updatedScenario.id !== currentId) {
+      console.warn(`Updated scenario ID (${updatedScenario.id}) doesn't match current selectedScenarioId (${currentId})`);
+    }
+    
     updateScenarioStore(updatedScenario);
   }
   
@@ -255,6 +430,7 @@
       on:add={addScenarioHandler}
       on:duplicate={e => duplicateScenarioHandler(e.detail)}
       on:delete={e => deleteScenarioHandler(e.detail)}
+      on:rename={renameScenarioHandler}
       on:select={e => selectScenario(e.detail)}
       on:compare={e => selectCompare(e.detail)}
     />

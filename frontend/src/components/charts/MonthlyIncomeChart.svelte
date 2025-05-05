@@ -1,21 +1,23 @@
-<script>
+<script lang="ts">
   import { onMount } from 'svelte';
   import ChartComponent from './ChartComponent.svelte';
-  import annotationPlugin from 'chartjs-plugin-annotation';
-  
+  import type { ChartOptions, ChartData } from 'chart.js';
+  import { format } from 'date-fns';
+
   // Props
-  export let selectedProjection = null;
-  export let compareProjection = null;
-  export let selectedScenario = null;
-  export let compareScenario = null;
-  
-  let chartData = {
+  export let selectedProjection: any = null;
+  export let compareProjection: any = null;
+  export let selectedScenario: any = null;
+  export let compareScenario: any = null;
+
+  // Local state
+  let chartData: ChartData<'line'> = {
     labels: [],
     datasets: []
   };
-  
+
   // Chart options
-  const chartOptions = {
+  const chartOptions: ChartOptions<'line'> = {
     scales: {
       x: {
         type: 'time',
@@ -31,6 +33,11 @@
         },
         grid: {
           color: 'rgba(200, 200, 200, 0.2)'
+        },
+        ticks: {
+          callback: (value: number | string) => {
+            return '$' + value.toLocaleString();
+          }
         }
       },
       y: {
@@ -42,7 +49,7 @@
           color: 'rgba(200, 200, 200, 0.2)'
         },
         ticks: {
-          callback: (value) => {
+          callback: (value: number | string) => {
             return '$' + value.toLocaleString();
           }
         }
@@ -51,7 +58,7 @@
     plugins: {
       tooltip: {
         callbacks: {
-          label: function(context) {
+          label: function(context: any) {
             let label = context.dataset.label || '';
             if (label) {
               label += ': ';
@@ -64,21 +71,19 @@
         }
       },
       legend: {
-        position: 'top',
+        position: 'bottom' as const,
         labels: {
           usePointStyle: true,
           padding: 20
         }
       },
       annotation: {
-        annotations: {}
+        annotations: {} as Record<string, any>
       }
     },
     responsive: true,
     maintainAspectRatio: false
   };
-  
-  import { format, parseISO } from 'date-fns';
 
   // Prepare chart data when projections change
   $: if (selectedProjection && compareProjection) {
@@ -104,7 +109,7 @@
     }
     
     // Generate dates for X-axis
-    const dates = selectedProjection.yearlyData.map(item => {
+    const dates = selectedProjection.yearlyData.map((item: Record<string, any>) => {
       // Format dates as strings for Chart.js to avoid timezone issues
       return format(new Date(parseInt(item.year, 10), 0, 1), 'yyyy-MM-dd');
     });
@@ -113,7 +118,7 @@
     // Create datasets for selected scenario
     chartData.datasets.push({
       label: selectedScenario?.name || 'Scenario A',
-      data: selectedProjection.yearlyData.map((item, index) => ({
+      data: selectedProjection.yearlyData.map((item: Record<string, number>, index: number) => ({
         x: dates[index],
         y: Math.round(item.netIncome / 12) // Convert annual to monthly
       })),
@@ -128,13 +133,13 @@
     // Create datasets for compare scenario
     chartData.datasets.push({
       label: compareScenario?.name || 'Scenario B',
-      data: compareProjection.yearlyData.map((item, index) => {
+      data: compareProjection.yearlyData.map((item: Record<string, number>, index: number) => {
         const matchingDate = index < dates.length ? dates[index] : null;
         return {
           x: matchingDate,
           y: Math.round(item.netIncome / 12) // Convert annual to monthly
         };
-      }).filter(item => item.x !== null),
+      }).filter((item: { x: string | null }) => item.x !== null),
       borderColor: 'rgb(34, 197, 94)', // Green
       backgroundColor: 'rgba(34, 197, 94, 0.1)',
       borderWidth: 2,
@@ -149,7 +154,8 @@
         (selectedScenario.data.pension.retirementAge - new Date().getFullYear() + 1970);
       
       // Add to chart options annotations
-      chartOptions.plugins.annotation.annotations.retirementA = {
+      if (chartOptions.plugins && chartOptions.plugins.annotation && chartOptions.plugins.annotation.annotations) {
+  chartOptions.plugins.annotation.annotations.retirementA = {
         type: 'line',
         xMin: new Date(retirementYear, 0, 1),
         xMax: new Date(retirementYear, 0, 1),
@@ -169,7 +175,8 @@
         (compareScenario.data.pension.retirementAge - new Date().getFullYear() + 1970);
       
       // Add to chart options annotations
-      chartOptions.plugins.annotation.annotations.retirementB = {
+      if (chartOptions.plugins && chartOptions.plugins.annotation && chartOptions.plugins.annotation.annotations) {
+  chartOptions.plugins.annotation.annotations.retirementB = {
         type: 'line',
         xMin: new Date(retirementYear, 0, 1),
         xMax: new Date(retirementYear, 0, 1),
@@ -191,7 +198,8 @@
       const ssYear = birthYear + ssStartAge;
       
       // Add to chart options annotations
-      chartOptions.plugins.annotation.annotations.ssA = {
+      if (chartOptions.plugins && chartOptions.plugins.annotation && chartOptions.plugins.annotation.annotations) {
+  chartOptions.plugins.annotation.annotations.ssA = {
         type: 'line',
         xMin: new Date(ssYear, 0, 1),
         xMax: new Date(ssYear, 0, 1),
@@ -212,7 +220,8 @@
       const ssYear = birthYear + ssStartAge;
       
       // Add to chart options annotations
-      chartOptions.plugins.annotation.annotations.ssB = {
+      if (chartOptions.plugins && chartOptions.plugins.annotation && chartOptions.plugins.annotation.annotations) {
+  chartOptions.plugins.annotation.annotations.ssB = {
         type: 'line',
         xMin: new Date(ssYear, 0, 1),
         xMax: new Date(ssYear, 0, 1),
@@ -227,6 +236,7 @@
       };
     }
   }
+}
 </script>
 
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">

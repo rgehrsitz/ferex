@@ -1,25 +1,24 @@
-<script>
-  import { onMount } from 'svelte';
+<script lang="ts">
   import ChartComponent from './ChartComponent.svelte';
-  
+  import type { ChartOptions, ChartData } from 'chart.js';
+
   // Props
-  export let selectedProjection = null;
-  export let compareProjection = null;
-  export let selectedScenario = null;
-  export let compareScenario = null;
-  
-  let chartData = {
+  export let selectedProjection: any = null;
+  export let compareProjection: any = null;
+  export let selectedScenario: any = null;
+  export let compareScenario: any = null;
+
+
+  let chartData: ChartData<'line'> = {
     labels: [],
     datasets: []
   };
-  
-  // Chart options
-  const chartOptions = {
+
+
+  let chartOptions: ChartOptions<'line'> = {
     scales: {
       x: {
-        type: 'time',
         time: {
-          unit: 'year',
           displayFormats: {
             year: 'yyyy'
           }
@@ -41,7 +40,7 @@
           color: 'rgba(200, 200, 200, 0.2)'
         },
         ticks: {
-          callback: (value) => {
+          callback: (value: number | string) => {
             return '$' + value.toLocaleString();
           }
         }
@@ -50,7 +49,7 @@
     plugins: {
       tooltip: {
         callbacks: {
-          label: function(context) {
+          label: function(context: any) {
             let label = context.dataset.label || '';
             if (label) {
               label += ': ';
@@ -63,14 +62,14 @@
         }
       },
       legend: {
-        position: 'top',
+        position: 'top' as const,
         labels: {
           usePointStyle: true,
           padding: 20
         }
       },
       annotation: {
-        annotations: {}
+        annotations: {} as Record<string, any>
       }
     },
     responsive: true,
@@ -94,7 +93,7 @@
     }
     
     // Generate dates for X-axis
-    const dates = selectedProjection.yearlyData.map(item => new Date(item.year, 0, 1));
+    const dates = selectedProjection.yearlyData.map((item: Record<string, any>) => new Date(item.year, 0, 1));
     chartData.labels = dates;
     
     // Calculate monthly differences (B - A)
@@ -115,9 +114,9 @@
       label: 'Monthly Difference (B - A)',
       data: deltaData,
       borderColor: 'rgb(217, 70, 239)', // Purple
-      backgroundColor: function(context) {
-        const value = context.raw.y;
-        return value >= 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+      backgroundColor: function(context: any) {
+        const raw = context.raw as number;
+        return raw >= 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)';
       },
       borderWidth: 2,
       tension: 0.1,
@@ -127,7 +126,8 @@
     });
     
     // Add a zero line
-    chartOptions.plugins.annotation.annotations.zeroLine = {
+    if (chartOptions.plugins && chartOptions.plugins.annotation && chartOptions.plugins.annotation.annotations) {
+  chartOptions.plugins.annotation.annotations.zeroLine = {
       type: 'line',
       yMin: 0,
       yMax: 0,
@@ -135,6 +135,7 @@
       borderWidth: 1,
       borderDash: [5, 5]
     };
+}
     
     // Add retirement age markers if available
     if (selectedScenario?.data?.pension?.retirementAge) {
@@ -142,7 +143,8 @@
         (selectedScenario.data.pension.retirementAge - new Date().getFullYear() + 1970);
       
       // Add to chart options annotations
-      chartOptions.plugins.annotation.annotations.retirementA = {
+      if (chartOptions.plugins && chartOptions.plugins.annotation && chartOptions.plugins.annotation.annotations) {
+  chartOptions.plugins.annotation.annotations.retirementA = {
         type: 'line',
         xMin: new Date(retirementYear, 0, 1),
         xMax: new Date(retirementYear, 0, 1),
@@ -162,7 +164,8 @@
         (compareScenario.data.pension.retirementAge - new Date().getFullYear() + 1970);
       
       // Add to chart options annotations
-      chartOptions.plugins.annotation.annotations.retirementB = {
+      if (chartOptions.plugins && chartOptions.plugins.annotation && chartOptions.plugins.annotation.annotations) {
+  chartOptions.plugins.annotation.annotations.retirementB = {
         type: 'line',
         xMin: new Date(retirementYear, 0, 1),
         xMax: new Date(retirementYear, 0, 1),

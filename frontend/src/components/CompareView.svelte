@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CalculateRetirementProjection } from '../../wailsjs/go/main/App';
-  import { main } from '../../wailsjs/go/models';
-  import type { Scenario } from '../types/scenario';
+  import { CalculateRetirementProjection } from '../../wailsjs/go/main/App.js';
+  import { main } from '../../wailsjs/go/models.js';
+  import type { Scenario } from '../types/scenario.js';
   import MonthlyIncomeChart from './charts/SimpleMontlyIncomeChart.svelte';
   import CumulativeIncomeChart from './charts/SimpleCumulativeIncomeChart.svelte';
   import MonthlyIncomeDeltaChart from './charts/SimpleMonthlyDeltaChart.svelte';
@@ -15,13 +15,13 @@
   let error = '';
   let selectedProjection: any = null;
   let compareProjection: any = null;
-  
-  // Summary statistics
-  let selectedNetTotal = 0;
-  let compareNetTotal = 0;
-  let netIncomeDifference = 0;
-  let cumulativeDifference = 0;
-  
+
+  // Svelte 5 idiom: use $: for derived values
+  $: selectedNetTotal = selectedProjection?.netIncomeTotal ?? 0;
+  $: compareNetTotal = compareProjection?.netIncomeTotal ?? 0;
+  $: netIncomeDifference = selectedNetTotal - compareNetTotal;
+  $: cumulativeDifference = (selectedProjection?.cumulativeIncomeTotal ?? 0) - (compareProjection?.cumulativeIncomeTotal ?? 0);
+
   // Chart visibility controls
   let activeCharts = {
     monthlyIncome: true,
@@ -85,14 +85,14 @@
     
     // Pension data
     const pension = new main.PensionInput();
-    pension.system = scenario.data.pension.retirementSystem;
-    pension.high3Salary = scenario.data.pension.highThreeSalary;
-    pension.yearsOfService = scenario.data.pension.yearsOfService;
-    pension.ageAtRetirement = scenario.data.pension.retirementAge;
-    pension.unusedSickLeaveMonths = Math.round(scenario.data.pension.unusedSickLeave / 174); // Convert hours to months
-    pension.survivorBenefitOption = scenario.data.pension.survivorBenefit;
-    pension.isPartTime = scenario.data.pension.isPartTime;
-    pension.partTimeProrationFactor = scenario.data.pension.partTimeProrationFactor;
+    pension.system = scenario.data.pension.system ?? '';
+    pension.high3Salary = scenario.data.pension.high3Salary ?? 0;
+    pension.yearsOfService = scenario.data.pension.yearsOfService ?? 0;
+    pension.ageAtRetirement = scenario.data.pension.ageAtRetirement ?? 0;
+    pension.unusedSickLeaveMonths = scenario.data.pension.unusedSickLeaveMonths ?? 0;
+    pension.survivorBenefitOption = scenario.data.pension.survivorBenefitOption ?? '';
+    pension.isPartTime = scenario.data.pension.isPartTime ?? false;
+    pension.partTimeProrationFactor = scenario.data.pension.partTimeProrationFactor ?? 1;
     input.pension = pension;
     
     // Social Security data
@@ -109,14 +109,14 @@
       ss.yearsWorked = 35; // Default years worked for estimation
       
       // Add SSA estimates if available
-      if (scenario.data.socialSecurity.ssaEstimateAt62 > 0) {
-        ss.userProvidedEstimate62 = scenario.data.socialSecurity.ssaEstimateAt62;
+      if ((scenario.data.socialSecurity.ssaEstimateAt62 ?? 0) > 0) {
+        ss.userProvidedEstimate62 = scenario.data.socialSecurity.ssaEstimateAt62 ?? 0;
       }
-      if (scenario.data.socialSecurity.ssaEstimateAtFRA > 0) {
-        ss.userProvidedEstimateFRA = scenario.data.socialSecurity.ssaEstimateAtFRA;
+      if ((scenario.data.socialSecurity.ssaEstimateAtFRA ?? 0) > 0) {
+        ss.userProvidedEstimateFRA = scenario.data.socialSecurity.ssaEstimateAtFRA ?? 0;
       }
-      if (scenario.data.socialSecurity.ssaEstimateAt70 > 0) {
-        ss.userProvidedEstimate70 = scenario.data.socialSecurity.ssaEstimateAt70;
+      if ((scenario.data.socialSecurity.ssaEstimateAt70 ?? 0) > 0) {
+        ss.userProvidedEstimate70 = scenario.data.socialSecurity.ssaEstimateAt70 ?? 0;
       }
       
       input.socialSecurity = ss;
@@ -167,8 +167,7 @@
       const tax = new main.TaxInput();
       tax.filingStatus = scenario.data.tax.filingStatus;
       tax.stateOfResidence = scenario.data.tax.stateOfResidence;
-      tax.additionalIncome = scenario.data.tax.additionalIncome;
-      tax.additionalDeductions = scenario.data.tax.additionalDeductions;
+
       tax.stateIncomeTaxRate = scenario.data.tax.stateIncomeTaxRate;
       input.tax = tax;
     }
@@ -203,16 +202,24 @@
     
     input.otherIncome = otherIncome;
     
-    // Projection age range
-    input.projectionStartAge = scenario.data.pension.retirementAge;
+    // Calculate current age based on birth year
+    const currentYear = new Date().getFullYear();
+    const currentAge = scenario.data.socialSecurity?.birthYear 
+      ? (currentYear - scenario.data.socialSecurity.birthYear) 
+      : 45; // Default to age 45 if birth year not available
+      
+    // Projection age range - start at current age, not retirement age
+    input.projectionStartAge = currentAge;
     input.projectionEndAge = 95; // Default to age 95
+    
+    console.log(`Setting projection range: ${currentAge} to 95 years old`);
     
     return input;
   }
   
   // Run projections when component mounts
   onMount(() => {
-    runProjections();
+    runProjections(); // Svelte 5 idiom: use onMount for side effects
   });
 </script>
 
@@ -280,8 +287,8 @@
               {@const compareYear = compareProjection.yearlyData[i] || { netIncome: 0 }}
               {@const difference = compareYear.netIncome - yearData.netIncome}
               <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td class="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200">{yearData.age}</td>
-                <td class="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200">{yearData.year}</td>
+                <td class="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-800 dark:text-gray-200">{yearData.age}</td>
+                <td class="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">{yearData.year}</td>
                 <td class="py-2 px-4 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200 text-right">
                   {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(yearData.netIncome)}
                 </td>

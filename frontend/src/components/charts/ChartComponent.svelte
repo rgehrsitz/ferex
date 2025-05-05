@@ -1,26 +1,27 @@
-<script>
+<script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { Chart, registerables } from 'chart.js';
   import annotationPlugin from 'chartjs-plugin-annotation';
-  
+  import type { ChartTypeRegistry, ChartOptions, ChartData } from 'chart.js';
+
   // Register all Chart.js components needed
   Chart.register(...registerables);
   Chart.register(annotationPlugin);
   
   // Props
-  export let type = 'line'; // line, bar, pie, etc.
-  export let data = {
+  export let type: keyof ChartTypeRegistry = 'line'; // line, bar, pie, etc.
+  export let data: ChartData = {
     labels: [],
     datasets: []
   };
-  export let options = {};
-  export let width = '100%';
-  export let height = '400px';
-  export let id = `chart-${Math.random().toString(36).substring(2, 9)}`;
-  
-  let canvas;
-  let chart;
-  
+  export let options: ChartOptions = {};
+  export let width: string = '100%';
+  export let height: string = '400px';
+  export let id: string = `chart-${Math.random().toString(36).substring(2, 9)}`;
+
+  let canvas: HTMLCanvasElement;
+  let chart: Chart;
+
   onMount(() => {
     // Add a slight delay to ensure the canvas is fully rendered
     setTimeout(() => {
@@ -42,7 +43,7 @@
       }
     }, 100);
   });
-  
+
   // Update chart when data or options change
   $: if (chart && data) {
     try {

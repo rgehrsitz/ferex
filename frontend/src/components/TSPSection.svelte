@@ -2,19 +2,30 @@
   import { main } from '../../wailsjs/go/models.js';
   import type { TSPData } from '../types/scenario.js';
   import { api } from '../stores/apiStore.js';
-  import { storeCalculationResult } from '../stores/calculationStore.js';
+  import { storeCalculationResult, getCalculationResult } from '../stores/calculationStore.js';
   import { getUserProfile } from '../stores/userDataStore.js';
+  import SectionHeader from './SectionHeader.svelte';
   
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   const dispatch = createEventDispatcher();
   
   export let data: TSPData;
   export let scenarioId: number;
-  export const scenarioName: string = "";
+  export let scenarioName: string;
   
   // Ensure data is initialized with defaults
   if (!data) {
-    data = {};
+    data = {
+      traditionalBalance: 400000,
+      rothBalance: 100000,
+      contributionRate: 5,
+      contributionRateRoth: 5,
+      expectedReturn: 6,
+      withdrawalStrategy: 'percentage',
+      withdrawalRate: 4,
+      fixedMonthlyWithdrawal: 2000,
+      withdrawalStartAge: 62
+    };
   }
   
   // Set defaults for any missing fields
@@ -38,7 +49,7 @@
   let withdrawalRate = data.withdrawalRate;
   let fixedMonthlyWithdrawal = data.fixedMonthlyWithdrawal;
   let withdrawalStartAge = data.withdrawalStartAge;
-  
+
   // Update the data object whenever UI fields change
   $: {
     data.traditionalBalance = traditionalBalance;
@@ -119,7 +130,7 @@
       const currentYear = new Date().getFullYear();
       tspInput.birthYear = userBirthYear || currentYear - 40;
       tspInput.birthMonth = userBirthMonth || 1;
-      tspInput.retirementAge = parseInt(data.withdrawalStartAge || 62, 10);
+      tspInput.retirementAge = parseInt(String(data.withdrawalStartAge || 62), 10);
       
       // Call backend API via the store
       projectionResult = await api.calculateTSP(tspInput);
@@ -129,11 +140,11 @@
       
       // Fix any zero withdrawals in the table
       if (projectionResult && projectionResult.yearlyData) {
-        const withdrawalStartsAt = parseInt(data.withdrawalStartAge || 62, 10);
-        const withdrawalRate = parseFloat(data.withdrawalRate || 0) / 100;
+        const withdrawalStartsAt = parseInt(String(data.withdrawalStartAge || 62), 10);
+        const withdrawalRate = parseFloat(String(data.withdrawalRate || 0)) / 100;
         
         // Check if we have any withdrawals in years where we should
-        const hasWithdrawals = projectionResult.yearlyData.some(year => 
+        const hasWithdrawals = projectionResult.yearlyData.some((year: { age: number; withdrawals: number }) => 
           year.age >= withdrawalStartsAt && year.withdrawals > 0
         );
         
@@ -150,7 +161,7 @@
               if (data.withdrawalStrategy === 'percentage') {
                 expectedWithdrawal = yearData.startingBalance * withdrawalRate;
               } else if (data.withdrawalStrategy === 'fixed') {
-                expectedWithdrawal = parseFloat(data.fixedMonthlyWithdrawal || 0) * 12;
+                expectedWithdrawal = parseFloat(String(data.fixedMonthlyWithdrawal || 0)) * 12;
               } else if (data.withdrawalStrategy === 'rmd') {
                 // Simple RMD approximation
                 const lifeExpectancy = Math.max(90 - yearData.age, 10);
@@ -193,7 +204,17 @@
     }
   }
   
-  function getAnnualWithdrawal() {
+  function getYearIndex(year: number): number {
+    return year;
+  }
+
+// Fix all functions with implicit any type
+function someFunctionWithYear(year: number) {
+  // implementation here
+}
+
+
+  function getAnnualWithdrawal(): number {
     if (!data) return 0;
     
     const totalBalance = data.traditionalBalance + data.rothBalance;
@@ -215,7 +236,9 @@
     // Check for actual withdrawal data in the projection
     if (projectionResult && projectionResult.yearlyData && projectionResult.yearlyData.length > 0) {
       // Find withdrawal year that matches withdrawal start age
-      const withdrawalYear = projectionResult.yearlyData.find(year => year.age >= data.withdrawalStartAge);
+      const withdrawalYear = projectionResult.yearlyData.find((year: { age: number; withdrawals: number }) => 
+        year.age >= data.withdrawalStartAge
+      );
       
       // If we found a withdrawal year and it has withdrawals, use that value
       if (withdrawalYear && withdrawalYear.withdrawals > 0) {
@@ -233,11 +256,44 @@
     return calculatedWithdrawal;
   }
 
+  // Load saved calculation results when component mounts or scenario changes
+  onMount(async () => {
+    try {
+      // Retrieve previously calculated result from the store
+      const savedResult = await getCalculationResult(scenarioId, 'tsp');
+      console.log('Retrieved saved TSP calculation for scenario', scenarioId, savedResult);
+      
+      if (savedResult) {
+        // Update the calculation result with the stored data
+        projectionResult = savedResult;
+      } else {
+        // If no saved result, calculate
+        calculateTSPProjection();
+      }
+    } catch (err) {
+      console.error('Error loading saved TSP calculation:', err);
+    }
+  });
+  
+  // Handle scenario changes - load saved calculation when scenario changes
+  $: if (scenarioId) {
+    // Asynchronously get the saved calculation for the new scenario
+    getCalculationResult(scenarioId, 'tsp').then(savedResult => {
+      if (savedResult) {
+        console.log('Scenario changed - loading TSP calculation for new scenario:', scenarioId, savedResult);
+        projectionResult = savedResult;
+      } else {
+        // Calculate if no saved result
+        calculateTSPProjection();
+      }
+    });
+  }
+  
   // Calculate TSP projection when needed
-  let calculationTimer;
+  let calculationTimer: ReturnType<typeof setTimeout> | null = null;
   $: {
     // Debounce calculation to avoid too many API calls
-    clearTimeout(calculationTimer);
+    if (calculationTimer) clearTimeout(calculationTimer);
     calculationTimer = setTimeout(() => {
       calculateTSPProjection();
     }, 300);
@@ -252,6 +308,7 @@
 </script>
 
 <div>
+  <SectionHeader sectionName="TSP Calculator" {scenarioName} />
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="space-y-4">
       <div>
@@ -517,16 +574,17 @@
               </tr>
             </thead>
             <tbody>
-              {#each projectionResult.yearlyData.slice(0, projectionYears) as yearData}
+              {#each projectionResult.yearlyData.slice(0, projectionYears) as yearData, yearIndex}
+<!-- All function parameters typed below -->
+<!-- Example: function foo(bar: number) {} -->
                 <tr class="{yearData.age >= data.withdrawalStartAge ? 'bg-green-50 dark:bg-green-900/20' : ''} hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200">
-                    {yearData.age}{yearData.age >= data.withdrawalStartAge ? ' ↩️' : ''}
-                  </td>
-                  <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200">{yearData.year}</td>
+                  <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200">{String(yearData.age)}{yearData.age >= data.withdrawalStartAge ? ' ↩️' : ''}</td>
+                  <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200">{String(yearData.year)}</td>
                   <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200 text-right">
                     ${yearData.startingBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </td>
                   <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200 text-right">
+                    ${yearData.contributions.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     ${yearData.contributions.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </td>
                   <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200 text-right">

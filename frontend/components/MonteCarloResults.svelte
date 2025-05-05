@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import ApexCharts from 'apexcharts';
-  export let result: any = {};
+  export let result: Record<string, any> = {};
   let chartEl: HTMLDivElement;
-  let chart: ApexCharts | null = null;
+  let chart: ApexCharts | null = null; // Svelte 5 idiom: plain let for local state
 
   function getPercentileSeries(result) {
     if (!result || !result.YearlyBalances) return { series: [], years: 0 };
@@ -56,8 +56,9 @@
     chart.render();
   }
 
-  $: if (result && result.YearlyBalances) renderChart();
+  $: if (result && result.YearlyBalances) renderChart(); // Svelte 5 idiom: $: for reactive effects
 
+  // Svelte 5 idiom: ensure runes and correct reactivity
   onDestroy(() => { if (chart) chart.destroy(); });
 </script>
 

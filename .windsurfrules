@@ -1,0 +1,4 @@
+Use Svelte V5 for the frontend and Go for the backend.
+Use Wails for the desktop application.
+Use Tailwind CSS for styling.
+Use Svelte v5's new features and best practices, including runes and new ways to handle reactive state.

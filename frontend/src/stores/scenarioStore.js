@@ -23,15 +23,36 @@ export const compareScenario = derived(
 
 // Helper functions for scenario management using appData
 export function addScenario(newScenario) {
-    appData.update(d => ({
-        ...d,
-        scenarios: [...d.scenarios, newScenario]
-    }));
+    // Ensure the scenario has a valid ID - use the createUniqueId function if needed
+    if (!newScenario.id || newScenario.id === 0) {
+        appData.update(d => {
+            // Generate a unique ID based on existing scenarios
+            const id = createUniqueId(d.scenarios);
+            newScenario.id = id;
+            
+            return {
+                ...d,
+                scenarios: [...d.scenarios, newScenario]
+            };
+        });
+    } else {
+        // If an ID is already provided, just add the scenario
+        appData.update(d => ({
+            ...d,
+            scenarios: [...d.scenarios, newScenario]
+        }));
+    }
+    
     return newScenario.id;
 }
 
 export function updateScenario(updatedScenario) {
     console.log('scenarioStore.updateScenario called with:', updatedScenario);
+    
+    if (!updatedScenario || !updatedScenario.id) {
+        console.error('Invalid scenario - missing ID:', updatedScenario);
+        return;
+    }
     
     // Make a deep copy of the updated scenario to prevent reference issues
     const clonedScenario = JSON.parse(JSON.stringify(updatedScenario));
@@ -39,6 +60,15 @@ export function updateScenario(updatedScenario) {
     appData.update(d => {
         console.log('Current appData.scenarios before update:', d.scenarios);
         
+        // Find the scenario we're updating
+        const existingScenario = d.scenarios.find(s => s.id === clonedScenario.id);
+        
+        if (!existingScenario) {
+            console.error(`Cannot update scenario with ID ${clonedScenario.id} - not found in store`);
+            return d; // Return unmodified store if scenario not found
+        }
+        
+        // Create a new array with the updated scenario
         const newScenarios = d.scenarios.map(s => 
             s.id === clonedScenario.id ? clonedScenario : s
         );

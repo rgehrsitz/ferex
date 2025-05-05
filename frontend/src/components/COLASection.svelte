@@ -1,16 +1,23 @@
 <script lang="ts">
-  import { CalculateCOLAAdjustment } from '../../wailsjs/go/main/App';
-  import { main } from '../../wailsjs/go/models';
-  import type { COLAData } from '../types/scenario';
-  import { createEventDispatcher } from 'svelte';
+  import { CalculateCOLAAdjustment } from '../../wailsjs/go/main/App.js';
+  import { main } from '../../wailsjs/go/models.js';
+  import type { COLAData } from '../types/scenario.js';
+  export let onUpdate: (data: COLAData) => void = () => {};
+  import SectionHeader from './SectionHeader.svelte';
   
   export let data: COLAData;
+  export let scenarioName: string;
   
-  const dispatch = createEventDispatcher();
+  
+  import { onMount } from 'svelte';
   
   // Ensure data is initialized with defaults
   if (!data) {
-    data = {};
+    data = {
+      assumedInflationRate: 2.5,
+      applyCOLAToPension: true,
+      applyColaToSocialSecurity: true
+    };
   }
   
   // Set defaults for any missing fields
@@ -22,7 +29,7 @@
   let assumedInflationRate = data.assumedInflationRate;
   let applyCOLAToPension = data.applyCOLAToPension;
   let applyColaToSocialSecurity = data.applyColaToSocialSecurity;
-  
+
   let loading = false;
   let error = '';
   let calculationResult: any = {
@@ -33,33 +40,29 @@
     yearlyAdjustments: [],
     notes: ''
   };
-  
+
   // Projection parameters
   let projectionYears = 20;
   let baseAmount = 30000; // Sample pension amount
   let monthsInFirstYear = 12; // Full first year
-  
+
   // COLA system to display
   let selectedSystem: 'FERS' | 'CSRS' | 'Social Security' = 'FERS';
-  
+
   // Needed for calculations
   const currentYear = new Date().getFullYear();
-  
+
   const pensionOptions = [
     { value: 'FERS', label: 'FERS COLA', description: 'Follows inflation with caps: 2% if inflation is 2-3%, inflation-1% for inflation >3%' },
     { value: 'CSRS', label: 'CSRS COLA', description: 'Matches full inflation rate with no caps' },
     { value: 'Social Security', label: 'Social Security COLA', description: 'Based on CPI-W, usually similar to general inflation' }
   ];
-  
-  // Update the data object whenever UI variables change
-  $: {
-    data.assumedInflationRate = assumedInflationRate;
-    data.applyCOLAToPension = applyCOLAToPension;
-    data.applyColaToSocialSecurity = applyColaToSocialSecurity;
-    
-    // Notify parent component of changes
-    dispatch('update', data);
-  }
+
+  // Svelte 5 idiom: $: for reactivity
+  $: data.assumedInflationRate = assumedInflationRate;
+  $: data.applyCOLAToPension = applyCOLAToPension;
+  $: data.applyColaToSocialSecurity = applyColaToSocialSecurity;
+  $: onUpdate(data);
   
   async function calculateCOLA() {
     try {
@@ -130,6 +133,7 @@
 </script>
 
 <div>
+  <SectionHeader sectionName="COLA Calculator" {scenarioName} />
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="space-y-4">
       <div>
@@ -149,7 +153,7 @@
               if (assumedInflationRate) {
                 assumedInflationRate = parseFloat(assumedInflationRate.toString());
               }
-              dispatch('update', data);
+              onUpdate(data);
             }}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -164,7 +168,7 @@
           type="checkbox"
           class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
           bind:checked={applyCOLAToPension}
-          on:change={() => dispatch('update', data)}
+          on:change={() => onUpdate(data)}
         />
         <label for="applyCOLAToPension" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Apply COLA to Pension
@@ -177,7 +181,7 @@
           type="checkbox"
           class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
           bind:checked={applyColaToSocialSecurity}
-          on:change={() => dispatch('update', data)}
+          on:change={() => onUpdate(data)}
         />
         <label for="applyColaToSocialSecurity" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Apply COLA to Social Security

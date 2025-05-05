@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { createEventDispatcher } from 'svelte';
-  
+
   const dispatch = createEventDispatcher();
-  let darkMode = false;
-  let isCalculating = false;
+  let darkMode: boolean = false;
+  let isCalculating: boolean = false;
 
   // On mount, check localStorage or system preference
   onMount(() => {
