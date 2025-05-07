@@ -1,58 +1,91 @@
 <script lang="ts">
-  
   import { CalculatePension } from '../../wailsjs/go/main/App.js';
   import { main } from '../../wailsjs/go/models.js';
   import type { PensionData } from '../types/scenario.js';
   import SectionHeader from './SectionHeader.svelte';
 
-  export const onUpdate: (data: any) => void = () => {};
-  export let data: PensionData;
-  export let scenarioName: string;
+  // Default data object
+  const defaultData = {
+    system: 'FERS',
+    high3Salary: 100000,
+    yearsOfService: 30,
+    ageAtRetirement: 62,
+    unusedSickLeaveMonths: 6,
+    isPartTime: false,
+    partTimeProrationFactor: 1.0,
+    survivorBenefitOption: 'full',
+    csrsOffset: false,
+    militaryService: 0
+  };
 
-  // Ensure data is initialized with defaults
-  if (!data) {
-    data = {
-      system: 'FERS',
-      high3Salary: 100000,
-      yearsOfService: 30,
-      ageAtRetirement: 62,
-      unusedSickLeaveMonths: 6,
-      isPartTime: false,
-      partTimeProrationFactor: 1.0,
-      survivorBenefitOption: 'full',
-      csrsOffset: false
-    };
-  }
+  // Use defaulted props pattern
+  const { 
+    data: propData = defaultData, 
+    scenarioName, 
+    onUpdate = (data: any) => {} 
+  } = $props<{
+    data?: PensionData;
+    scenarioName: string;
+    onUpdate?: (data: any) => void;
+  }>();
   
-  // Set defaults for any missing fields
-  data.system = data.system || 'FERS';
-  data.high3Salary = data.high3Salary || 100000;
-  data.yearsOfService = data.yearsOfService || 30;
-  data.ageAtRetirement = data.ageAtRetirement || 62;
-  data.unusedSickLeaveMonths = data.unusedSickLeaveMonths || 6;
-  data.isPartTime = data.isPartTime || false;
-  data.partTimeProrationFactor = data.partTimeProrationFactor || 1.0;
-  data.survivorBenefitOption = data.survivorBenefitOption || 'full';
-  data.csrsOffset = data.csrsOffset || false;
+  // Create a local copy we can work with
+  const inputData = propData ? { ...propData } : { ...defaultData };
 
-  // For UI display, map from backend field names to frontend-friendly names where needed
-  let retirementSystem = data.system;
-  let highThreeSalary = data.high3Salary;
-  let retirementAge = data.ageAtRetirement;
-  let unusedSickLeaveMonths = data.unusedSickLeaveMonths;
-  let survivorBenefitOption = data.survivorBenefitOption;
+  // Set defaults for any missing fields if we have data from props
+  if (propData) {
+    inputData.system = propData.system || defaultData.system;
+    inputData.high3Salary = propData.high3Salary || defaultData.high3Salary;
+    inputData.yearsOfService = propData.yearsOfService || defaultData.yearsOfService;
+    inputData.ageAtRetirement = propData.ageAtRetirement || defaultData.ageAtRetirement;
+    inputData.unusedSickLeaveMonths = propData.unusedSickLeaveMonths || defaultData.unusedSickLeaveMonths;
+    inputData.isPartTime = propData.isPartTime ?? defaultData.isPartTime;
+    inputData.partTimeProrationFactor = propData.partTimeProrationFactor || defaultData.partTimeProrationFactor;
+    inputData.survivorBenefitOption = propData.survivorBenefitOption || defaultData.survivorBenefitOption;
+    inputData.csrsOffset = propData.csrsOffset ?? defaultData.csrsOffset;
+    inputData.militaryService = propData.militaryService || defaultData.militaryService;
+  }
 
-  // Add custom field for display
-  let csrsOffset = data.csrsOffset;
+  // State with Svelte 5 runes
+  let retirementSystem = $state(inputData.system);
+  let highThreeSalary = $state(inputData.high3Salary);
+  let yearsOfService = $state(inputData.yearsOfService);
+  let retirementAge = $state(inputData.ageAtRetirement);
+  let unusedSickLeaveMonths = $state(inputData.unusedSickLeaveMonths);
+  let survivorBenefitOption = $state(inputData.survivorBenefitOption);
+  let isPartTime = $state(inputData.isPartTime);
+  let partTimeProrationFactor = $state(inputData.partTimeProrationFactor);
+  let csrsOffset = $state(inputData.csrsOffset);
+  let militaryService = $state(inputData.militaryService);
+  
+  let calculationResult = $state({
+    annualPension: 0,
+    monthlyPension: 0,
+    notes: ''
+  });
+  
+  let loading = $state(false);
+  let error = $state('');
 
-  // Svelte 5 idiom: $: for reactivity
-  $: data.system = retirementSystem;
-  $: data.high3Salary = highThreeSalary;
-  $: data.ageAtRetirement = retirementAge;
-  $: data.unusedSickLeaveMonths = unusedSickLeaveMonths;
-  $: data.survivorBenefitOption = survivorBenefitOption;
-  $: data.csrsOffset = csrsOffset;
-  $: onUpdate({ ...data });
+  // Sync changes to a new data object and notify parent
+  $effect(() => {
+    // Create a new data object with current values
+    const updatedData = {
+      system: retirementSystem,
+      high3Salary: highThreeSalary,
+      yearsOfService: yearsOfService,
+      ageAtRetirement: retirementAge,
+      unusedSickLeaveMonths: unusedSickLeaveMonths,
+      survivorBenefitOption: survivorBenefitOption,
+      isPartTime: isPartTime,
+      partTimeProrationFactor: partTimeProrationFactor,
+      militaryService: militaryService,
+      csrsOffset: retirementSystem === 'CSRS_OFFSET' ? csrsOffset : false
+    };
+    
+    // Notify parent component
+    onUpdate(updatedData);
+  });
 
   // Options for dropdowns
   const retirementSystems = [
@@ -67,49 +100,24 @@
     { value: 'full', label: 'Full (50%)' }
   ];
 
-  let calculationResult = {
-    annualPension: 0,
-    monthlyPension: 0,
-    notes: ''
-  };
-  
-  let loading = false;
-  let error = '';
+  // Derived values from calculation result
+  const annualPension = $derived(calculationResult.annualPension);
+  const monthlyPension = $derived(calculationResult.monthlyPension);
 
-  // Update just the data object fields without complex reactivity
-  // This is a simpler approach that leverages Svelte's standard binding
-  
   // Handle all field changes in a single function
   function handleFieldChange() {
-    // First update data object
-    data.system = retirementSystem;
-    data.high3Salary = highThreeSalary;
-    data.ageAtRetirement = retirementAge;
-    data.unusedSickLeaveMonths = unusedSickLeaveMonths;
-    data.survivorBenefitOption = survivorBenefitOption;
-    
-    // Special case for CSRS Offset
-    if (retirementSystem === 'CSRS_OFFSET') {
-      data.csrsOffset = csrsOffset;
-    }
-    
-    // Notify parent component only once
-    onUpdate({ ...data });
-    
-    // Request calculation
+    // Calculate pension with updated values
     calculatePension();
   }
 
   // Calculate pension when data changes
   async function calculatePension() {
-    if (!data) return;
-    
     try {
       loading = true;
       error = '';
       
       // Map the frontend retirement system to the backend format
-      let systemValue = data.system;
+      let systemValue = retirementSystem;
       if (systemValue === 'CSRS_OFFSET') {
         systemValue = 'CSRS Offset';
       }
@@ -117,13 +125,14 @@
       // Create input object for backend
       const pensionInput = new main.PensionInput();
       pensionInput.system = systemValue ?? '';
-pensionInput.high3Salary = data.high3Salary ?? 0;
-pensionInput.yearsOfService = data.yearsOfService ?? 0;
-pensionInput.ageAtRetirement = data.ageAtRetirement ?? 0;
-pensionInput.unusedSickLeaveMonths = data.unusedSickLeaveMonths ?? 0;
-pensionInput.survivorBenefitOption = data.survivorBenefitOption ?? '';
-pensionInput.isPartTime = data.isPartTime ?? false;
-pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
+      pensionInput.high3Salary = highThreeSalary ?? 0;
+      pensionInput.yearsOfService = yearsOfService ?? 0;
+      pensionInput.ageAtRetirement = retirementAge ?? 0;
+      pensionInput.unusedSickLeaveMonths = unusedSickLeaveMonths ?? 0;
+      pensionInput.survivorBenefitOption = survivorBenefitOption ?? '';
+      pensionInput.isPartTime = isPartTime ?? false;
+      pensionInput.partTimeProrationFactor = partTimeProrationFactor ?? 1;
+      pensionInput.militaryService = militaryService ?? 0;
       
       // Call backend API
       calculationResult = await CalculatePension(pensionInput);
@@ -137,10 +146,6 @@ pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
       loading = false;
     }
   }
-  
-  // Simple reactive statements for derived values
-  $: annualPension = calculationResult.annualPension;
-  $: monthlyPension = calculationResult.monthlyPension;
 </script>
 
 <!-- Capture input events to bubble across shadow boundaries -->
@@ -161,7 +166,7 @@ pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
           id="retirementSystem"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={retirementSystem} 
-          on:change={handleFieldChange}
+          onchange={handleFieldChange}
         >
           {#each retirementSystems as system}
             <option value={system.value}>{system.label}</option>
@@ -184,8 +189,8 @@ pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
             step="1000"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={highThreeSalary}
-            on:change={handleFieldChange}
-            on:input={() => {
+            onchange={handleFieldChange}
+            oninput={() => {
               // For number inputs, update on input too for more responsive feel
               if (typeof highThreeSalary === 'string') {
                 highThreeSalary = parseFloat(highThreeSalary);
@@ -206,8 +211,8 @@ pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
           min="0"
           step="0.5"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.yearsOfService}
-          on:change={handleFieldChange}
+          bind:value={yearsOfService}
+          onchange={handleFieldChange}
         />
       </div>
 
@@ -222,7 +227,7 @@ pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
           max="75"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={retirementAge}
-          on:change={handleFieldChange}
+          onchange={handleFieldChange}
         />
       </div>
     </div>
@@ -238,7 +243,7 @@ pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
           min="0"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={unusedSickLeaveMonths}
-          on:change={handleFieldChange}
+          onchange={handleFieldChange}
         />
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
           Note: 1 month ≈ 174 hours of sick leave
@@ -255,8 +260,8 @@ pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
           min="0"
           step="0.5"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={data.militaryService}
-          on:change={handleFieldChange}
+          bind:value={militaryService}
+          onchange={handleFieldChange}
         />
       </div>
       
@@ -266,15 +271,15 @@ pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
             id="isPartTime"
             type="checkbox"
             class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-            bind:checked={data.isPartTime}
-            on:change={handleFieldChange}
+            bind:checked={isPartTime}
+            onchange={handleFieldChange}
           />
           <label for="isPartTime" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
             Include Part-time Service
           </label>
         </div>
         
-        {#if data.isPartTime}
+        {#if isPartTime}
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="partTimeProrationFactor">
             Part-time Proration Factor (0.1 to 1.0)
           </label>
@@ -285,8 +290,8 @@ pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
             max="1.0"
             step="0.01"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={data.partTimeProrationFactor}
-            on:change={handleFieldChange}
+            bind:value={partTimeProrationFactor}
+            onchange={handleFieldChange}
           />
           <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Example: 0.5 for half-time service
@@ -302,7 +307,7 @@ pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
           id="survivorBenefit"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={survivorBenefitOption}
-          on:change={handleFieldChange}
+          onchange={handleFieldChange}
         >
           {#each survivorBenefitOptions as option}
             <option value={option.value}>{option.label}</option>
@@ -317,7 +322,7 @@ pensionInput.partTimeProrationFactor = data.partTimeProrationFactor ?? 1;
             type="checkbox"
             class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             bind:checked={csrsOffset}
-            on:change={handleFieldChange}
+            onchange={handleFieldChange}
           />
           <label for="csrsOffset" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
             Apply CSRS Offset at age 62

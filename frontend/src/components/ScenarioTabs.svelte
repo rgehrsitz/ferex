@@ -6,15 +6,32 @@
   import COLASection from './COLASection.svelte';
   import OtherIncomeSection from './OtherIncomeSection.svelte';
   import { onMount, onDestroy } from 'svelte';
+  import type { Scenario, ScenarioData } from '../types/scenario.js';
+  import Dynamic from './Dynamic.svelte';
 
-  export let scenario: import('../types/scenario.js').Scenario;
-  export let onUpdateScenario: (updatedScenario: import('../types/scenario.js').Scenario) => void;
+  const { scenario, onUpdateScenario } = $props<{
+    scenario: Scenario;
+    onUpdateScenario: (updatedScenario: Scenario) => void;
+  }>();
 
-  // Now we'll track a tab per scenario to avoid losing state
-  let tabsByScenario: Record<string, string> = {};
+  // State with Svelte 5 runes
+  let tabsByScenario = $state<Record<string | number, string>>({});
+  let componentRefs = $state<Record<string, any>>({});
+  let currentScenarioId = $state<string | number | null>(null);
+  let statusMessage = $state<{ text: string; type: string } | null>(null);
+  let statusTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
 
-  // Svelte 5 idiom: $: for reactivity
-  $: tab = tabsByScenario[scenario?.id] || 'Pension';
+  // Derived active tab based on the current scenario
+  let activeTab = $derived(tabsByScenario[scenario?.id] || 'Pension');
+  
+  // Track when scenario changes to reset component refs
+  $effect(() => {
+    if (scenario && scenario.id !== currentScenarioId) {
+      console.log('ScenarioTabs: Scenario changed from', currentScenarioId, 'to', scenario.id);
+      currentScenarioId = scenario.id;
+      componentRefs = {}; // Reset component references
+    }
+  });
   
   // Function to set the tab for the current scenario
   function setTab(newTab: string) {
@@ -22,16 +39,7 @@
     tabsByScenario = { ...tabsByScenario, [scenario.id]: newTab };
   }
   
-  let componentRefs: Record<string, any> = {}; // Store references to components
-  let currentScenarioId: string | number | null = null; // Track if scenario ID has changed
-  
-  // Track when scenario changes to reset component refs
-  $: if (scenario && scenario.id !== currentScenarioId) {
-    console.log('ScenarioTabs: Scenario changed from', currentScenarioId, 'to', scenario.id);
-    currentScenarioId = scenario.id;
-    componentRefs = {}; // Reset component references
-  }
-  
+  // Tab definitions
   const tabs = [
     { label: 'Pension', comp: PensionSection, prop: 'pension' },
     { label: 'Social Security', comp: SocialSecuritySection, prop: 'socialSecurity' },
@@ -52,11 +60,10 @@
     }
     
     // Show calculation status
-    const statusMsg = { 
+    showStatusMessage({ 
       text: 'Calculating all sections...',
       type: 'info'
-    };
-    showStatusMessage(statusMsg);
+    });
     
     // Trigger calculations in all tab components
     calculateAllSections();
@@ -83,9 +90,6 @@
   }
   
   // Status message handling
-  let statusMessage: { text: string; type: string } | null = null;
-  let statusTimeout: ReturnType<typeof setTimeout> | null = null;
-  
   function showStatusMessage(message: { text: string; type: string }): void {
     statusMessage = message;
     
@@ -104,9 +108,6 @@
   onMount(() => {
     console.log(`ScenarioTabs for scenario ${scenario.id} mounted - adding event listeners`);
     document.addEventListener('global-calculate', handleGlobalCalculate as EventListener);
-    return () => {
-      document.removeEventListener('global-calculate', handleGlobalCalculate as EventListener);
-    };
   });
   
   onDestroy(() => {
@@ -120,8 +121,11 @@
     componentRefs = {};
   });
 
-  // Emit scenario update on child section changes - simpler approach with less overhead
-  function handleSectionUpdate<K extends keyof import('../types/scenario.js').ScenarioData>(prop: K, updatedData: import('../types/scenario.js').ScenarioData[K]): void {
+  // Handle section updates
+  function handleSectionUpdate<K extends keyof ScenarioData>(
+    prop: K, 
+    updatedData: ScenarioData[K]
+  ): void {
     // Create updated scenario with the new data
     const newScenario = {
       ...scenario,
@@ -141,16 +145,16 @@
     {#each tabs as t}
       <button 
         class="px-4 py-2 font-medium text-sm transition-colors duration-200 relative" 
-        class:text-primary-600={tab===t.label} 
-        class:text-gray-500={tab!==t.label}
-        class:dark:text-primary-400={tab===t.label} 
-        class:dark:text-gray-400={tab!==t.label} 
-        class:hover:text-primary-700={tab!==t.label}
-        class:dark:hover:text-primary-300={tab!==t.label}
-        on:click={() => setTab(t.label)}
+        class:text-primary-600={activeTab===t.label} 
+        class:text-gray-500={activeTab!==t.label}
+        class:dark:text-primary-400={activeTab===t.label} 
+        class:dark:text-gray-400={activeTab!==t.label} 
+        class:hover:text-primary-700={activeTab!==t.label}
+        class:dark:hover:text-primary-300={activeTab!==t.label}
+        onclick={() => setTab(t.label)}
       >
         {t.label}
-        {#if tab === t.label}
+        {#if activeTab === t.label}
           <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 dark:bg-primary-400"></div>
         {/if}
       </button>
@@ -188,19 +192,21 @@
 
   <!-- Tab content -->
   {#each tabs as t}
-    {#if tab === t.label}
+    {#if activeTab === t.label}
       <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-        <svelte:component
-          this={t.comp}
-          data={(scenario.data as any)[t.prop]}
-          scenarioId={scenario.id}
-          scenarioName={scenario.name}
-          on:update={e => handleSectionUpdate(t.prop as keyof import('../types/scenario.js').ScenarioData, e.detail)}
-          bind:this={componentRefs[t.prop]}
-          currentAge={t.prop === 'tax' && (scenario.data as any).socialSecurity?.birthYear 
-            ? new Date().getFullYear() - (scenario.data as any).socialSecurity.birthYear 
-            : undefined}
-        />
+        {#if t.comp}
+          <Dynamic 
+            component={t.comp}
+            data={(scenario.data as any)[t.prop]}
+            scenarioId={scenario.id}
+            scenarioName={scenario.name}
+            onUpdate={data => handleSectionUpdate(t.prop as keyof ScenarioData, data)}
+            bind:this={componentRefs[t.prop]}
+            currentAge={t.prop === 'tax' && (scenario.data as any).socialSecurity?.birthYear 
+              ? new Date().getFullYear() - (scenario.data as any).socialSecurity.birthYear 
+              : undefined}
+          />
+        {/if}
       </div>
     {/if}
   {/each}

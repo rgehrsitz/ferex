@@ -2,12 +2,14 @@
   import { onMount } from 'svelte';
 
   // Svelte V5 idiom: use callback props for parent communication
-  export let onSave: () => void;
-  export let onLoad: () => void;
-  export let onCalculate: () => void;
+  const { onSave, onLoad, onCalculate } = $props<{
+    onSave: () => void;
+    onLoad: () => void;
+    onCalculate: () => void;
+  }>();
 
-  let darkMode: boolean = false;
-  let isCalculating: boolean = false;
+  let darkMode = $state(false);
+  let isCalculating = $state(false);
 
   // On mount, check localStorage or system preference
   onMount(() => {
@@ -26,11 +28,15 @@
     }, 100);
   });
 
+  // Use $effect to handle changes to darkMode
+  $effect(() => {
+    updateHtmlClass();
+  });
+
   function toggleDarkMode() {
     darkMode = !darkMode;
     console.log('Toggle dark mode:', darkMode);
     localStorage.setItem('darkMode', darkMode.toString());
-    updateHtmlClass();
   }
 
   function updateHtmlClass() {
@@ -101,7 +107,7 @@
   <div class="flex items-center gap-3">
     <!-- Save and Load buttons -->
     <button 
-      on:click={handleSaveClick} 
+      onclick={handleSaveClick} 
       class="px-3 py-1 rounded-md text-sm font-medium 
       bg-green-100 hover:bg-green-200 dark:bg-green-800 dark:hover:bg-green-700 
       text-green-800 dark:text-green-200 
@@ -113,7 +119,7 @@
     </button>
     
     <button 
-      on:click={handleLoadClick} 
+      onclick={handleLoadClick} 
       class="px-3 py-1 rounded-md text-sm font-medium 
       bg-blue-100 hover:bg-blue-200 dark:bg-blue-800 dark:hover:bg-blue-700 
       text-blue-800 dark:text-blue-200 
@@ -126,7 +132,7 @@
     
     <!-- Calculate Button -->
     <button 
-      on:click={handleCalculateClick} 
+      onclick={handleCalculateClick} 
       class="px-3 py-1 rounded-md text-sm font-medium 
       bg-purple-100 hover:bg-purple-200 dark:bg-purple-800 dark:hover:bg-purple-700 
       text-purple-800 dark:text-purple-200 
@@ -139,7 +145,7 @@
     
     <!-- Dark Mode Toggle -->
     <button 
-      on:click={toggleDarkMode} 
+      onclick={toggleDarkMode} 
       class="px-3 py-1 rounded-md text-sm font-medium 
       bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 
       text-gray-800 dark:text-gray-200 

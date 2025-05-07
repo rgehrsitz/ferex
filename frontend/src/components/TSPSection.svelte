@@ -1,32 +1,68 @@
 <script lang="ts">
   import { main } from '../../wailsjs/go/models.js';
   import type { TSPData } from '../types/scenario.js';
-  import { api } from '../stores/apiStore.js';
-  import { storeCalculationResult, getCalculationResult } from '../stores/calculationStore.js';
-  import { getUserProfile } from '../stores/userDataStore.js';
+  import { api } from '../api.js';
   import SectionHeader from './SectionHeader.svelte';
   
   import { onMount } from 'svelte';
-  export const onUpdate: (data: any) => void = () => {};
   
-  export let data: TSPData;
-  export let scenarioId: number;
-  export let scenarioName: string;
+  // Local calculation cache to replace the store
+  let calculationCache = $state(new Map());
   
-  // Ensure data is initialized with defaults
-  if (!data) {
-    data = {
-      traditionalBalance: 400000,
-      rothBalance: 100000,
-      contributionRate: 5,
-      contributionRateRoth: 5,
-      expectedReturn: 6,
-      withdrawalStrategy: 'percentage',
-      withdrawalRate: 4,
-      fixedMonthlyWithdrawal: 2000,
-      withdrawalStartAge: 62
-    };
+  // Helper to get calculation result
+  function getCalculationResult(scenarioId, type) {
+    const key = `${scenarioId}-${type}`;
+    return calculationCache.get(key);
   }
+  
+  // Helper to store calculation result
+  function storeCalculationResult(scenarioId, type, result) {
+    const key = `${scenarioId}-${type}`;
+    calculationCache.set(key, {
+      ...result,
+      timestamp: new Date().toISOString()
+    });
+    return result;
+  }
+  
+  // Default user profile
+  let userProfile = $state({
+    birthYear: new Date().getFullYear() - 40,
+    birthMonth: 1
+  });
+  
+  // Helper to get user profile
+  function getUserProfile() {
+    return userProfile;
+  }
+  
+  const { 
+    data: propData, 
+    scenarioId, 
+    scenarioName, 
+    onUpdate = (data: any) => {} 
+  } = $props<{
+    data?: TSPData;
+    scenarioId: number;
+    scenarioName: string;
+    onUpdate?: (data: any) => void;
+  }>();
+  
+  // Create a local copy of data that we can modify
+  const defaultData = {
+    traditionalBalance: 400000,
+    rothBalance: 100000,
+    contributionRate: 5,
+    contributionRateRoth: 5,
+    expectedReturn: 6,
+    withdrawalStrategy: 'percentage',
+    withdrawalRate: 4,
+    fixedMonthlyWithdrawal: 2000,
+    withdrawalStartAge: 62
+  };
+  
+  // Use propData if available, otherwise use defaults
+  const data = propData ? { ...propData } : { ...defaultData };
   
   // Set defaults for any missing fields
   data.traditionalBalance = data.traditionalBalance ?? 400000;
@@ -40,18 +76,18 @@
   data.withdrawalStartAge = data.withdrawalStartAge ?? 62;
   
   // Create local variables for UI binding
-  let traditionalBalance = data.traditionalBalance;
-  let rothBalance = data.rothBalance;
-  let contributionRate = data.contributionRate;
-  let contributionRateRoth = data.contributionRateRoth;
-  let expectedReturn = data.expectedReturn;
-  let withdrawalStrategy = data.withdrawalStrategy;
-  let withdrawalRate = data.withdrawalRate;
-  let fixedMonthlyWithdrawal = data.fixedMonthlyWithdrawal;
-  let withdrawalStartAge = data.withdrawalStartAge;
+  let traditionalBalance = $state(data.traditionalBalance);
+  let rothBalance = $state(data.rothBalance);
+  let contributionRate = $state(data.contributionRate);
+  let contributionRateRoth = $state(data.contributionRateRoth);
+  let expectedReturn = $state(data.expectedReturn);
+  let withdrawalStrategy = $state(data.withdrawalStrategy);
+  let withdrawalRate = $state(data.withdrawalRate);
+  let fixedMonthlyWithdrawal = $state(data.fixedMonthlyWithdrawal);
+  let withdrawalStartAge = $state(data.withdrawalStartAge);
 
   // Update the data object whenever UI fields change
-  $: {
+  $effect(() => {
     data.traditionalBalance = traditionalBalance;
     data.rothBalance = rothBalance;
     data.contributionRate = contributionRate;
@@ -66,12 +102,12 @@
     
     // Notify parent component of changes
     onUpdate(data);
-  }
+  });
   
   
-  let loading = false;
-  let error = '';
-  let projectionResult: any = {
+  let loading = $state(false);
+  let error = $state('');
+  let projectionResult = $state<any>({
     yearlyData: [],
     maxBalance: 0,
     finalBalance: 0,
@@ -79,10 +115,10 @@
     totalWithdrawals: 0,
     totalReturns: 0,
     notes: ""
-  };
+  });
   
   // Defaults for visualization
-  let projectionYears = 5; // Show first 5 years by default
+  let projectionYears = $state(5); // Show first 5 years by default
 
   const withdrawalStrategies = [
     { value: 'fixed', label: 'Fixed Monthly Amount' },
@@ -276,35 +312,44 @@ function someFunctionWithYear(year: number) {
   });
   
   // Handle scenario changes - load saved calculation when scenario changes
-  $: if (scenarioId) {
-    // Asynchronously get the saved calculation for the new scenario
-    getCalculationResult(scenarioId, 'tsp').then(savedResult => {
-      if (savedResult) {
-        console.log('Scenario changed - loading TSP calculation for new scenario:', scenarioId, savedResult);
-        projectionResult = savedResult;
-      } else {
-        // Calculate if no saved result
-        calculateTSPProjection();
-      }
-    });
-  }
+  $effect(() => {
+    if (scenarioId) {
+      // Asynchronously get the saved calculation for the new scenario
+      getCalculationResult(scenarioId, 'tsp').then(savedResult => {
+        if (savedResult) {
+          console.log('Scenario changed - loading TSP calculation for new scenario:', scenarioId, savedResult);
+          projectionResult = savedResult;
+        } else {
+          // Calculate if no saved result
+          calculateTSPProjection();
+        }
+      });
+    }
+  });
   
   // Calculate TSP projection when needed
   let calculationTimer: ReturnType<typeof setTimeout> | null = null;
-  $: {
+  $effect(() => {
     // Debounce calculation to avoid too many API calls
     if (calculationTimer) clearTimeout(calculationTimer);
     calculationTimer = setTimeout(() => {
       calculateTSPProjection();
     }, 300);
-  }
+  });
 
-  $: annualWithdrawal = getAnnualWithdrawal() || 0;
-  $: monthlyWithdrawal = isNaN(annualWithdrawal) ? 0 : annualWithdrawal / 12;
-  $: totalBalance = traditionalBalance + rothBalance;
-  $: yearsUntilDepletion = projectionResult.notes?.match(/Balance depleted at age (\d+)/) 
-                            ? parseInt(projectionResult.notes.match(/Balance depleted at age (\d+)/)[1]) - withdrawalStartAge
-                            : '30+';
+  let annualWithdrawal = $state(0);
+  let monthlyWithdrawal = $state(0);
+  let totalBalance = $state(0);
+  let yearsUntilDepletion = $state('30+');
+
+  $effect(() => {
+    annualWithdrawal = getAnnualWithdrawal() || 0;
+    monthlyWithdrawal = isNaN(annualWithdrawal) ? 0 : annualWithdrawal / 12;
+    totalBalance = traditionalBalance + rothBalance;
+    yearsUntilDepletion = projectionResult.notes?.match(/Balance depleted at age (\d+)/) 
+                          ? parseInt(projectionResult.notes.match(/Balance depleted at age (\d+)/)[1]) - withdrawalStartAge
+                          : '30+';
+  });
 </script>
 
 <div>
@@ -608,7 +653,7 @@ function someFunctionWithYear(year: number) {
         <div class="mt-4 flex justify-between items-center">
           <button 
             class="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-            on:click={() => projectionYears = Math.max(5, projectionYears - 5)}>
+            onclick={() => projectionYears = Math.max(5, projectionYears - 5)}>
             Show Less
           </button>
           <span class="text-sm text-gray-500 dark:text-gray-400">
@@ -616,7 +661,7 @@ function someFunctionWithYear(year: number) {
           </span>
           <button 
             class="px-3 py-1 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-            on:click={() => projectionYears = Math.min(projectionResult.yearlyData.length, projectionYears + 5)}>
+            onclick={() => projectionYears = Math.min(projectionResult.yearlyData.length, projectionYears + 5)}>
             Show More
           </button>
         </div>

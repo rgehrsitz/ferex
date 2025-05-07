@@ -5,23 +5,32 @@
   
   import SectionHeader from './SectionHeader.svelte';
   
-  export let data: TaxData;
+  // Default data values
+  const defaultData = {
+    filingStatus: 'single',
+    stateOfResidence: 'MD',
+    stateIncomeTaxRate: 5,
+    itemizedDeductions: 0,
+    federalTaxCredits: 0,
+    stateTaxCredits: 0,
+    spouseAge: 65,
+    age: 0
+  };
+
+  const { 
+    data: propData, 
+    onUpdate = (data: any) => {},
+    scenarioName = '',
+    currentAge = 65 // Default if not provided
+  } = $props<{
+    data?: TaxData;
+    onUpdate?: (data: any) => void;
+    scenarioName?: string;
+    currentAge?: number;
+  }>();
   
-  export const onUpdate: (data: any) => void = () => {};
-  
-  // Ensure data is initialized with defaults
-  if (!data) {
-    data = {
-      filingStatus: 'single',
-      stateOfResidence: '',
-      stateIncomeTaxRate: 0,
-      itemizedDeductions: 0,
-      federalTaxCredits: 0,
-      stateTaxCredits: 0,
-      spouseAge: 0,
-      age: 0
-    };
-  }
+  // Create a local copy of data that we can modify
+  const data = propData ? { ...propData } : { ...defaultData };
   
   // Set defaults for any missing fields
   data.filingStatus = data.filingStatus || 'single';
@@ -33,35 +42,33 @@
   // Note: Age is now derived from Social Security data in the parent component
   data.spouseAge = data.spouseAge ?? 65;
   
-  // Create local variables for UI binding
-  let filingStatus = data.filingStatus;
-  let stateOfResidence = data.stateOfResidence;
-  let stateIncomeTaxRate = data.stateIncomeTaxRate;
-  let itemizedDeductions = data.itemizedDeductions;
-  let federalTaxCredits = data.federalTaxCredits;
-  let stateTaxCredits = data.stateTaxCredits;
-  let spouseAge = data.spouseAge;
+  // Create local variables for UI binding with $state
+  let filingStatus = $state(data.filingStatus);
+  let stateOfResidence = $state(data.stateOfResidence);
+  let stateIncomeTaxRate = $state(data.stateIncomeTaxRate);
+  let itemizedDeductions = $state(data.itemizedDeductions);
+  let federalTaxCredits = $state(data.federalTaxCredits);
+  let stateTaxCredits = $state(data.stateTaxCredits);
+  let spouseAge = $state(data.spouseAge);
 
-  // Svelte 5 idiom: $: for reactivity
-  $: data.filingStatus = filingStatus;
-  $: data.stateOfResidence = stateOfResidence;
-  $: data.stateIncomeTaxRate = stateIncomeTaxRate;
-  $: data.itemizedDeductions = itemizedDeductions;
-  $: data.federalTaxCredits = federalTaxCredits;
-  $: data.stateTaxCredits = stateTaxCredits;
-  $: data.spouseAge = spouseAge;
-  $: onUpdate({ ...data });
+  // Use $effect for reactivity
+  $effect(() => {
+    data.filingStatus = filingStatus;
+    data.stateOfResidence = stateOfResidence;
+    data.stateIncomeTaxRate = stateIncomeTaxRate;
+    data.itemizedDeductions = itemizedDeductions;
+    data.federalTaxCredits = federalTaxCredits;
+    data.stateTaxCredits = stateTaxCredits;
+    data.spouseAge = spouseAge;
+    onUpdate({ ...data });
+  });
 
-  // We'll get the primary age from the parent component
-  export let currentAge = 65; // Default if not provided
-
-  // Get scenario name for the header
-  export let scenarioName: string = '';
+  // currentAge is now received via $props
 
   
-  let loading = false;
-  let error = '';
-  let calculationResult: any = {
+  let loading = $state(false);
+  let error = $state('');
+  let calculationResult = $state({
     federalTax: 0,
     stateTax: 0,
     totalTax: 0,
@@ -69,7 +76,7 @@
     effectiveStateRate: 0,
     effectiveTotalRate: 0,
     notes: ''
-  };
+  });
   
   // Sample projected income (would be derived from other sections)
   let sampleAnnualIncome = 100000;
@@ -139,7 +146,7 @@
   ];
   
   // Update the data object whenever UI variables change
-  $: {
+  $effect(() => {
     data.filingStatus = filingStatus;
     data.stateOfResidence = stateOfResidence;
     data.stateIncomeTaxRate = stateIncomeTaxRate;
@@ -151,7 +158,7 @@
     
     // Notify parent component of changes
     onUpdate(data);
-  }
+  });
   
   async function calculateTaxes() {
     try {
@@ -186,7 +193,7 @@
   }
 
   // Trigger calculation when relevant inputs change
-  $: {
+  $effect(() => {
     if (filingStatus !== undefined || 
         stateOfResidence || 
         stateIncomeTaxRate !== undefined ||
@@ -195,11 +202,11 @@
         spouseAge !== undefined) {
       calculateTaxes();
     }
-  }
+  });
 
-  $: effectiveFederalRate = calculationResult.effectiveFederalRate * 100 || 0;
-  $: effectiveStateRate = calculationResult.effectiveStateRate * 100 || 0;
-  $: effectiveTotalRate = calculationResult.effectiveTotalRate * 100 || 0;
+  const effectiveFederalRate = $derived(calculationResult.effectiveFederalRate * 100 || 0);
+  const effectiveStateRate = $derived(calculationResult.effectiveStateRate * 100 || 0);
+  const effectiveTotalRate = $derived(calculationResult.effectiveTotalRate * 100 || 0);
 </script>
 
 <div>
@@ -214,7 +221,7 @@
           id="filingStatus"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={filingStatus}
-          on:change={() => onUpdate(data)}
+          onchange={() => onUpdate(data)}
         >
           {#each filingStatusOptions as status}
             <option value={status.value}>{status.label}</option>
@@ -230,7 +237,7 @@
           id="stateOfResidence"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           bind:value={stateOfResidence}
-          on:change={() => onUpdate(data)}
+          onchange={() => onUpdate(data)}
         >
           {#each stateOptions as state}
             <option value={state.value}>{state.label}</option>
@@ -251,7 +258,7 @@
             step="0.1"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={stateIncomeTaxRate}
-            on:change={() => {
+            onchange={() => {
               if (stateIncomeTaxRate) {
                 stateIncomeTaxRate = parseFloat(stateIncomeTaxRate.toString());
               }
@@ -265,10 +272,10 @@
       </div>
       
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="currentAge">
           Your Age
         </label>
-        <div class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-md text-gray-800 dark:text-gray-200">
+        <div id="currentAge" class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded-md text-gray-800 dark:text-gray-200">
           {currentAge} <span class="text-xs text-gray-500 dark:text-gray-400">(from birth year in Social Security tab)</span>
         </div>
       </div>
@@ -285,7 +292,7 @@
             max="100"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={spouseAge}
-            on:change={() => {
+            onchange={() => {
               if (spouseAge) {
                 spouseAge = parseInt(spouseAge.toString());
               }
@@ -312,7 +319,7 @@
             step="500"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={itemizedDeductions}
-            on:change={() => {
+            onchange={() => {
               if (itemizedDeductions) {
                 itemizedDeductions = parseFloat(itemizedDeductions.toString());
               }
@@ -340,7 +347,7 @@
             step="100"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={federalTaxCredits}
-            on:change={() => {
+            onchange={() => {
               if (federalTaxCredits) {
                 federalTaxCredits = parseFloat(federalTaxCredits.toString());
               }
@@ -365,7 +372,7 @@
             step="100"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={stateTaxCredits}
-            on:change={() => {
+            onchange={() => {
               if (stateTaxCredits) {
                 stateTaxCredits = parseFloat(stateTaxCredits.toString());
               }

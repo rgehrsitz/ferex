@@ -1,6 +1,8 @@
 <script lang="ts">
-  export let sectionName: string;
-  export let scenarioName: string;
+  const { sectionName, scenarioName } = $props<{
+    sectionName: string;
+    scenarioName: string;
+  }>();
 </script>
 
 <div class="mb-6 flex justify-between items-center">

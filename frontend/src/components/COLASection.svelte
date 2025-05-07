@@ -2,52 +2,58 @@
   import { CalculateCOLAAdjustment } from '../../wailsjs/go/main/App.js';
   import { main } from '../../wailsjs/go/models.js';
   import type { COLAData } from '../types/scenario.js';
-  export let onUpdate: (data: COLAData) => void = () => {};
   import SectionHeader from './SectionHeader.svelte';
-  
-  export let data: COLAData;
-  export let scenarioName: string;
-  
   
   import { onMount } from 'svelte';
   
-  // Ensure data is initialized with defaults
-  if (!data) {
-    data = {
-      assumedInflationRate: 2.5,
-      applyCOLAToPension: true,
-      applyColaToSocialSecurity: true
-    };
-  }
+  // Default data values
+  const defaultData = {
+    assumedInflationRate: 2.5,
+    applyCOLAToPension: true,
+    applyColaToSocialSecurity: true
+  };
+  
+  const { 
+    data: propData = defaultData, 
+    scenarioName, 
+    onUpdate = (data: COLAData) => {} 
+  } = $props<{
+    data?: COLAData;
+    scenarioName: string;
+    onUpdate?: (data: COLAData) => void;
+  }>();
+  
+  // Create a local copy of data that we can modify
+  const data = propData ? { ...propData } : { ...defaultData };
   
   // Set defaults for any missing fields
   data.assumedInflationRate = data.assumedInflationRate ?? 2.5;
   data.applyCOLAToPension = data.applyCOLAToPension ?? true;
   data.applyColaToSocialSecurity = data.applyColaToSocialSecurity ?? true;
   
-  // Create local variables for UI binding
-  let assumedInflationRate = data.assumedInflationRate;
-  let applyCOLAToPension = data.applyCOLAToPension;
-  let applyColaToSocialSecurity = data.applyColaToSocialSecurity;
+  // Create local variables for UI binding with $state
+  let assumedInflationRate = $state(data.assumedInflationRate);
+  let applyCOLAToPension = $state(data.applyCOLAToPension);
+  let applyColaToSocialSecurity = $state(data.applyColaToSocialSecurity);
 
-  let loading = false;
-  let error = '';
-  let calculationResult: any = {
+  let loading = $state(false);
+  let error = $state('');
+  let calculationResult = $state({
     baseAmount: 0,
     finalAmount: 0,
     totalGrowthRate: 0,
     effectiveAnnualRate: 0,
     yearlyAdjustments: [],
     notes: ''
-  };
+  });
 
   // Projection parameters
-  let projectionYears = 20;
-  let baseAmount = 30000; // Sample pension amount
-  let monthsInFirstYear = 12; // Full first year
+  let projectionYears = $state(20);
+  let baseAmount = $state(30000); // Sample pension amount
+  let monthsInFirstYear = $state(12); // Full first year
 
   // COLA system to display
-  let selectedSystem: 'FERS' | 'CSRS' | 'Social Security' = 'FERS';
+  let selectedSystem = $state<'FERS' | 'CSRS' | 'Social Security'>('FERS');
 
   // Needed for calculations
   const currentYear = new Date().getFullYear();
@@ -58,11 +64,13 @@
     { value: 'Social Security', label: 'Social Security COLA', description: 'Based on CPI-W, usually similar to general inflation' }
   ];
 
-  // Svelte 5 idiom: $: for reactivity
-  $: data.assumedInflationRate = assumedInflationRate;
-  $: data.applyCOLAToPension = applyCOLAToPension;
-  $: data.applyColaToSocialSecurity = applyColaToSocialSecurity;
-  $: onUpdate(data);
+  // Use $effect for reactivity instead of $: statements
+  $effect(() => {
+    data.assumedInflationRate = assumedInflationRate;
+    data.applyCOLAToPension = applyCOLAToPension;
+    data.applyColaToSocialSecurity = applyColaToSocialSecurity;
+    onUpdate(data);
+  });
   
   async function calculateCOLA() {
     try {
@@ -120,16 +128,16 @@
   }
   
   // Trigger calculation when relevant inputs change
-  $: {
+  $effect(() => {
     if (assumedInflationRate !== undefined || 
         applyCOLAToPension !== undefined || 
         applyColaToSocialSecurity !== undefined ||
         selectedSystem) {
       calculateCOLA();
     }
-  }
+  });
 
-  $: estCOLA = calculateEstimatedFirstYearCOLA(assumedInflationRate);
+  const estCOLA = $derived(calculateEstimatedFirstYearCOLA(assumedInflationRate));
 </script>
 
 <div>
@@ -149,7 +157,7 @@
             step="0.1"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             bind:value={assumedInflationRate}
-            on:change={() => {
+            onchange={() => {
               if (assumedInflationRate) {
                 assumedInflationRate = parseFloat(assumedInflationRate.toString());
               }
@@ -168,7 +176,7 @@
           type="checkbox"
           class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
           bind:checked={applyCOLAToPension}
-          on:change={() => onUpdate(data)}
+          onchange={() => onUpdate(data)}
         />
         <label for="applyCOLAToPension" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Apply COLA to Pension
@@ -181,7 +189,7 @@
           type="checkbox"
           class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
           bind:checked={applyColaToSocialSecurity}
-          on:change={() => onUpdate(data)}
+          onchange={() => onUpdate(data)}
         />
         <label for="applyColaToSocialSecurity" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Apply COLA to Social Security

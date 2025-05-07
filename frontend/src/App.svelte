@@ -1,8 +1,6 @@
-<script context="module" lang="ts">
-  declare const api: {
-    saveScenarios(args: { scenarios: Scenario[]; filename: string }): Promise<{ success: boolean; message: string }>;
-    loadScenarios(args: { filename: string }): Promise<any>;
-  };
+<script module lang="ts">
+  // Import API functions directly
+  import { api } from './api.js';
 </script>
 
 <script lang="ts">
@@ -13,25 +11,27 @@
   import type { Scenario, ScenarioData } from './types/scenario.js';
   import { createDefaultScenario } from './utils/createDefaultScenario.js';
 
-  // Local state declarations
-  let scenarios: Scenario[] = [createDefaultScenario(1, 'Scenario 1'), createDefaultScenario(2, 'Scenario 2')];
-  let selectedScenarioId: number | null = 1;
-  let compareScenarioId: number | null = null;
-  let filename: string = '';
-  let statusMessage: string = '';
-  let isLoading: boolean = false;
-  let showSaveDialog: boolean = false;
-  let showLoadDialog: boolean = false;
-  let savedFiles: string[] = [];
-  let selectedFile: string = '';
-
-  // API is declared in <script context="module"> above. Remove duplicate declaration.
+  // State with Svelte 5 runes
+  let scenarios = $state([createDefaultScenario(1, 'Scenario 1'), createDefaultScenario(2, 'Scenario 2')]);
+  let selectedScenarioId = $state<number | null>(1);
+  let compareScenarioId = $state<number | null>(null);
+  let filename = $state('');
+  let statusMessage = $state('');
+  let isLoading = $state(false);
+  let showSaveDialog = $state(false);
+  let showLoadDialog = $state(false);
+  let savedFiles = $state<string[]>([]);
+  let selectedFile = $state('');
 
   // Debug: log scenarios array whenever it changes
-  $: console.log('App scenarios updated', scenarios);
+  $effect(() => {
+    console.log('App scenarios updated', scenarios);
+  });
 
-// Reactive variable for selected scenario
-$: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
+  // Derived state for selected scenario
+  const foundScenario = $derived(
+    scenarios.find((s: Scenario) => s.id === selectedScenarioId)
+  );
 
   function addScenarioHandler(): void {
     if (!scenarios || scenarios.length === 0) {
@@ -89,8 +89,6 @@ $: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
   function handleUpdateScenario(scenario: Scenario): void {
     scenarios = scenarios.map((s: Scenario) => s.id === scenario.id ? scenario : s);
   }
-
-  // handleSave and handleLoad already defined below. Remove duplicate implementations.
 
   async function saveScenarios(): Promise<void> {
     if (!filename) {
@@ -339,6 +337,9 @@ $: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
       selectedScenarioId = null;
       compareScenarioId = null;
       
+      // Update scenarios with the loaded data
+      scenarios = deepClonedList;
+      
       // Then set the first scenario as selected (if any) with a longer delay
       // to ensure the store is updated with the new scenarios first
       if (deepClonedList.length > 0) {
@@ -370,7 +371,6 @@ $: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
     showLoadDialog = true;
   }
 
-  
   // Handle global calculation request
   function handleGlobalCalculate(): void {
     console.log('App.handleGlobalCalculate triggered');
@@ -391,8 +391,6 @@ $: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
     
     console.log('Global calculation event dispatched');
   }
-
-
 </script>
 
 <div class="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100" id="main-container">
@@ -412,7 +410,7 @@ $: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
       onDelete={deleteScenarioHandler}
       onAdd={addScenarioHandler}
       onCompare={selectCompare}
-    /> <!-- scenarios is always Scenario[], so this is type safe -->
+    />
     <main class="flex-1 p-6 overflow-auto">
       {#if compareScenarioId}
         <CompareView
@@ -420,12 +418,12 @@ $: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
           compareScenario={scenarios.find((s: Scenario) => s.id === compareScenarioId) ?? null}
         />
       {:else if selectedScenarioId}
-  {#if foundScenario}
-    <ScenarioTabs
-      scenario={foundScenario}
-      onUpdateScenario={handleUpdateScenario}
-    />
-  {/if}
+        {#if foundScenario}
+          <ScenarioTabs
+            scenario={foundScenario}
+            onUpdateScenario={handleUpdateScenario}
+          />
+        {/if}
       {:else}
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
           <p class="text-gray-700 dark:text-gray-300">No scenarios defined.</p>
@@ -459,7 +457,7 @@ $: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
         
         <div class="flex justify-end gap-3">
           <button 
-            on:click={() => { showSaveDialog = false; statusMessage = ""; }}
+            onclick={() => { showSaveDialog = false; statusMessage = ""; }}
             class="px-4 py-2 text-sm font-medium rounded-md bg-gray-100 hover:bg-gray-200 
                    dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200"
             disabled={isLoading}
@@ -467,7 +465,7 @@ $: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
             Cancel
           </button>
           <button 
-            on:click={saveScenarios}
+            onclick={saveScenarios}
             class="px-4 py-2 text-sm font-medium rounded-md bg-primary-600 hover:bg-primary-700 
                    dark:bg-primary-700 dark:hover:bg-primary-600 text-white"
             disabled={isLoading}
@@ -517,7 +515,7 @@ $: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
         
         <div class="flex justify-end gap-3">
           <button 
-            on:click={() => { showLoadDialog = false; statusMessage = ""; }}
+            onclick={() => { showLoadDialog = false; statusMessage = ""; }}
             class="px-4 py-2 text-sm font-medium rounded-md bg-gray-100 hover:bg-gray-200 
                    dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200"
             disabled={isLoading}
@@ -525,7 +523,7 @@ $: foundScenario = scenarios.find((s: Scenario) => s.id === selectedScenarioId);
             Cancel
           </button>
           <button 
-            on:click={loadScenarios}
+            onclick={loadScenarios}
             class="px-4 py-2 text-sm font-medium rounded-md bg-primary-600 hover:bg-primary-700 
                    dark:bg-primary-700 dark:hover:bg-primary-600 text-white"
             disabled={isLoading || savedFiles.length === 0}

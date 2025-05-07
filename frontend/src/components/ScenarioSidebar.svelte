@@ -1,18 +1,32 @@
 <script lang="ts">
   import type { Scenario } from '../types/scenario.js';
-  export let scenarios: Scenario[] = [];
-  export let selectedScenarioId: number | null;
-  export let compareScenarioId: number | null;
-  export let onRename: (payload: { id: number; name: string }) => void;
-  export let onSelect: (id: number) => void;
-  export let onDuplicate: (id: number) => void;
-  export let onDelete: (id: number) => void;
-  export let onAdd: () => void;
-  export let onCompare: (id: number) => void;
+  
+  // Svelte 5 props
+  const { 
+    scenarios = [], 
+    selectedScenarioId, 
+    compareScenarioId, 
+    onRename, 
+    onSelect, 
+    onDuplicate, 
+    onDelete, 
+    onAdd, 
+    onCompare 
+  } = $props<{
+    scenarios: Scenario[];
+    selectedScenarioId: number | null;
+    compareScenarioId: number | null;
+    onRename: (payload: { id: number; name: string }) => void;
+    onSelect: (id: number) => void;
+    onDuplicate: (id: number) => void;
+    onDelete: (id: number) => void;
+    onAdd: () => void;
+    onCompare: (id: number) => void;
+  }>();
 
-  // State for editing scenario names
-  let editingScenarioId: number | null = null;
-  let editName: string = '';
+  // State for editing scenario names using Svelte 5 runes
+  let editingScenarioId = $state<number | null>(null);
+  let editName = $state('');
 
   // Custom action to focus input element when it's created
   // This is a better a11y practice than using autofocus attribute
@@ -69,20 +83,20 @@
                 type="text" 
                 bind:value={editName} 
                 class="flex-1 px-2 py-1 text-sm bg-transparent border-none focus:outline-none text-gray-800 dark:text-gray-200"
-                on:keydown={handleKeydown}
+                onkeydown={handleKeydown}
                 use:focusInput
               />
               <button 
                 class="text-xs px-1 text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300"
                 title="Save" 
-                on:click={saveEdit}
+                onclick={saveEdit}
               >
                 ✓
               </button>
               <button 
                 class="text-xs px-1 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                 title="Cancel" 
-                on:click={cancelEdit}
+                onclick={cancelEdit}
               >
                 ✕
               </button>
@@ -95,17 +109,17 @@
                 ? 'bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200' 
                 : 'hover:bg-gray-100 text-gray-800 dark:hover:bg-gray-700 dark:text-gray-200'} 
               border border-gray-200 dark:border-gray-700 transition-colors"
-              on:click={() => onSelect(scenario.id)}
+              onclick={() => onSelect(scenario.id)}
             >
               {scenario.name}
             </button>
-            <button class="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300" title="Duplicate" on:click={() => onDuplicate(scenario.id)}>
+            <button class="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300" title="Duplicate" onclick={() => onDuplicate(scenario.id)}>
               ⧉
             </button>
-            <button class="ml-1 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300" title="Delete" on:click={() => onDelete(scenario.id)}>
+            <button class="ml-1 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300" title="Delete" onclick={() => onDelete(scenario.id)}>
               🗑️
             </button>
-            <button class="ml-1 text-xs text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300" title="Compare" on:click={() => onCompare(scenario.id)}>
+            <button class="ml-1 text-xs text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300" title="Compare" onclick={() => onCompare(scenario.id)}>
               ⇄
             </button>
           {/if}
@@ -114,21 +128,21 @@
           <button 
             class="text-xs px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" 
             title="Rename" 
-            on:click={() => startEditing(scenario)}
+            onclick={() => startEditing(scenario)}
           >
             <span class="text-sm">✏️</span>
           </button>
           <button 
             class="text-xs px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" 
             title="Duplicate" 
-            on:click={() => onDuplicate(scenario.id)}
+            onclick={() => onDuplicate(scenario.id)}
           >
             <span class="text-sm">⎘</span>
           </button>
           <button 
             class="text-xs px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" 
             title="Delete" 
-            on:click={() => onDelete(scenario.id)}
+            onclick={() => onDelete(scenario.id)}
           >
             <span class="text-sm">🗑️</span>
           </button>
@@ -136,7 +150,7 @@
             <button 
               class="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 ml-auto"
               title="Compare" 
-              on:click={() => onCompare(scenario.id)}
+              onclick={() => onCompare(scenario.id)}
             >
               Compare
             </button>
@@ -147,7 +161,7 @@
   </ul>
   <button 
     class="w-full mt-4 py-2 px-3 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-semibold shadow transition-colors"
-    on:click={onAdd}
+    onclick={onAdd}
   >
     + Add Scenario
   </button>

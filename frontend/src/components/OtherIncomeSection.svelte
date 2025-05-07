@@ -4,13 +4,23 @@
   
   import SectionHeader from './SectionHeader.svelte';
   
-  export const onUpdate: (data: any) => void = () => {};
+  // Default data structure
+  const defaultData = { sources: [] };
+
+  const { 
+    data: propData = defaultData, 
+    scenarioId = 0, 
+    scenarioName = '',
+    onUpdate = (data: any) => {} 
+  } = $props<{
+    data?: OtherIncomeData;
+    scenarioId?: number;
+    scenarioName?: string;
+    onUpdate?: (data: any) => void;
+  }>();
   
-  export let data: OtherIncomeData = {
-    sources: []
-  };
-  export const scenarioId: number = 0;
-  export let scenarioName: string;
+  // Create a local copy of data that we can modify
+  const data = { ...propData };
   
   // Initialize sources array if it doesn't exist
   if (!data.sources) {
@@ -19,11 +29,10 @@
   
   // Add default income streams if none exist - but only visually, not to the actual data binding
   // This prevents the UI from showing defaults that aren't actually saved
-  let displaySources: OtherIncomeSource[] = [];
+  let displaySources = $state<OtherIncomeSource[]>([]);
   
-  // Svelte 5 idiom: use $: for reactivity and let for local state
-  // When data.sources changes, update displaySources
-  $: {
+  // Use $effect for reactivity instead of $: block
+  $effect(() => {
     // Create a deep copy to avoid direct mutation
     if (!data.sources || data.sources.length === 0) {
       // Ensure we have at least one income source
@@ -77,7 +86,7 @@
       // Update display sources from data
       displaySources = [...data.sources];
     }
-  }
+  });
 
   const frequencyOptions = [
     { value: 'monthly', label: 'Monthly' },
@@ -101,8 +110,7 @@
     // Ensure deep copy when updating the original data
     data.sources = JSON.parse(JSON.stringify(displaySources));
     
-    // Re-calculate total
-    totalAnnualIncome = calculateTotalAnnualIncome();
+    // Total will be recalculated automatically via $derived
     
     console.log('Added new income source. Total sources:', displaySources.length);
     
@@ -131,8 +139,7 @@
     // Ensure deep copy when updating the original data
     data.sources = JSON.parse(JSON.stringify(displaySources));
     
-    // Re-calculate total
-    totalAnnualIncome = calculateTotalAnnualIncome();
+    // Total will be recalculated automatically via $derived
     
     // Notify parent component of changes
     onUpdate(data);
@@ -148,7 +155,7 @@
     }, 0);
   }
 
-  $: totalAnnualIncome = calculateTotalAnnualIncome();
+  const totalAnnualIncome = $derived(calculateTotalAnnualIncome());
 </script>
 
 <div>
@@ -168,7 +175,7 @@
           <button 
             type="button"
             class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 px-2 py-1 rounded"
-            on:click|preventDefault={() => removeIncomeStream(source.id)}
+            onclick={(e) => { e.preventDefault(); removeIncomeStream(source.id); }}
           >
             Remove
           </button>
@@ -184,7 +191,7 @@
               type="text"
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               bind:value={source.name}
-              on:change={() => {
+              onchange={() => {
                 // Update the original data on change
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
@@ -201,7 +208,7 @@
               id={`frequency-${source.id}`}
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               bind:value={source.frequency}
-              on:change={() => {
+              onchange={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
                 onUpdate(data);
@@ -228,7 +235,7 @@
                 step="100"
                 class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 bind:value={source.amount}
-              on:change={() => {
+              onchange={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
                 onUpdate(data);
@@ -248,7 +255,7 @@
               max="120"
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               bind:value={source.startAge}
-              on:change={() => {
+              onchange={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
                 onUpdate(data);
@@ -267,7 +274,7 @@
               max="120"
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               bind:value={source.endAge}
-              on:change={() => {
+              onchange={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
                 onUpdate(data);
@@ -283,7 +290,7 @@
               type="checkbox"
               class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
               bind:checked={source.applyCola}
-              on:change={() => {
+              onchange={() => {
                 data.sources = JSON.parse(JSON.stringify(displaySources));
                 // Notify parent component of changes
                 onUpdate(data);
@@ -300,7 +307,7 @@
     <div class="flex justify-center">
       <button 
         class="px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:bg-primary-700 dark:hover:bg-primary-600 text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
-        on:click={addIncomeStream}
+        onclick={addIncomeStream}
       >
         + Add Income Stream
       </button>
