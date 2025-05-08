@@ -82,8 +82,7 @@
       if (propString !== previousPropString) {
         previousPropString = propString;
         updateLocalDataFromProps();
-        // Log the local data for debugging
-        console.log('SocialSecuritySection localData:', JSON.stringify(localData));
+        // Logging removed to reduce console noise
       }
     }
   });

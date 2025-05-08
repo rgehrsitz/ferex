@@ -213,17 +213,7 @@
           onUpdate={(data: any) => scenario && handleSectionUpdate('pension', data)} 
         />
       {:else if t.comp}
-        <!-- Adding debug logging -->
-        {() => {
-          console.log('ScenarioTabs - DEBUG:', {
-            component: t.comp?.name || 'UnnamedComponent',
-            prop: t.prop,
-            scenarioData: scenario?.data,
-            propData: (scenario?.data && (scenario.data as any)[t.prop]) || {},
-            scenarioId: scenario?.id || 0
-          });
-          return null;
-        }}
+        <!-- Debug logging removed -->
         <Dynamic 
           component={t.comp}
           data={(scenario?.data && (scenario.data as any)[t.prop]) || {}}
