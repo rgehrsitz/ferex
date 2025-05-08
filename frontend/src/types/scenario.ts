@@ -10,7 +10,7 @@ export interface PensionData {
   survivorBenefitOption?: string;
   
   // Additional frontend fields
-  militaryService?: number; // in years
+  militaryService: number; // in years
   csrsOffset?: boolean;
 }
 

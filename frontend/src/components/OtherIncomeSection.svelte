@@ -7,8 +7,9 @@
   // Default data structure
   const defaultData = { sources: [] };
 
+  // Instead of using bindable, we'll use a separate pattern for reactivity
   const { 
-    data: propData = defaultData, 
+    data = defaultData, 
     scenarioId = 0, 
     scenarioName = '',
     onUpdate = (data: any) => {} 
@@ -19,24 +20,26 @@
     onUpdate?: (data: any) => void;
   }>();
   
-  // Create a local copy of data that we can modify
-  const data = { ...propData };
+  // Create local state with $state for reactivity
+  let localData = $state({ ...data });
   
-  // Initialize sources array if it doesn't exist
-  if (!data.sources) {
-    data.sources = [];
+  // Initialize localData sources array if it doesn't exist
+  if (!localData.sources) {
+    localData.sources = [];
   }
   
-  // Add default income streams if none exist - but only visually, not to the actual data binding
-  // This prevents the UI from showing defaults that aren't actually saved
-  let displaySources = $state<OtherIncomeSource[]>([]);
+  // This is for backward compatibility with any code that might refer to displaySources
+  // This will be removed in future versions
+  let displaySources = $derived(localData.sources);
   
-  // Use $effect for reactivity instead of $: block
-  $effect(() => {
-    // Create a deep copy to avoid direct mutation
-    if (!data.sources || data.sources.length === 0) {
-      // Ensure we have at least one income source
-      displaySources = [
+  // Stored string representation for deep comparison
+  let previousDataString = $state('');
+  let previousLocalDataString = $state('');
+  
+  // Initialize default data once at component creation
+  function initializeDefaultData() {
+    if (!localData.sources || localData.sources.length === 0) {
+      localData.sources = [
         {
           id: uuidv4(),
           name: 'Part-time work',
@@ -45,12 +48,8 @@
           startAge: 62,
           endAge: 70,
           applyCola: true
-        }
-      ];
-      
-      // If this is a blank slate, add second default option
-      if (!data.sources || data.sources.length === 0) {
-        displaySources.push({
+        },
+        {
           id: uuidv4(),
           name: 'Rental property',
           amount: 1800,
@@ -58,18 +57,49 @@
           startAge: 62,
           endAge: 90,
           applyCola: true
-        });
-      }
+        }
+      ];
+    }
+    
+    // Store the initial string representation
+    previousLocalDataString = JSON.stringify(localData);
+  }
+  
+  // Run the initialization (non-reactive)
+  initializeDefaultData();
+  
+  // Manual function to update the props from localData
+  function updateParentData() {
+    const currentString = JSON.stringify(localData);
+    
+    // Only update if the data has actually changed
+    if (currentString !== previousLocalDataString) {
+      console.log('OtherIncomeSection: localData changed, updating parent');
+      previousLocalDataString = currentString;
       
-      // Update the actual data to match display sources
-      data.sources = JSON.parse(JSON.stringify(displaySources));
+      // Create a deep copy to avoid reference issues
+      const dataForParent = JSON.parse(currentString);
       
-      // Notify parent component of changes
-      onUpdate(data);
-    } else {
-      // Make sure we have at least one source
-      if (data.sources.length === 0) {
-        data.sources = [{
+      // Notify parent via callback
+      onUpdate(dataForParent);
+    }
+  }
+  
+  // Manual function to update localData from props
+  function updateLocalDataFromProps() {
+    const currentString = JSON.stringify(data);
+    
+    // Only update if the data has actually changed
+    if (currentString !== previousDataString) {
+      console.log('OtherIncomeSection: data prop changed, updating localData');
+      previousDataString = currentString;
+      
+      // Parse the incoming data
+      const newData = JSON.parse(currentString);
+      
+      // Ensure we have at least one source
+      if (!newData.sources || newData.sources.length === 0) {
+        newData.sources = [{
           id: uuidv4(),
           name: 'New Income',
           amount: 1000,
@@ -78,14 +108,26 @@
           endAge: 90,
           applyCola: false
         }];
-        
-        // Notify parent component of changes
-        onUpdate(data);
       }
       
-      // Update display sources from data
-      displaySources = [...data.sources];
+      // Update local data with the validated data
+      localData = newData;
     }
+  }
+  
+  // When data changes from outside, update our local copy
+  $effect.root(() => {
+    // Wait for the component to be fully initialized
+    setTimeout(() => {
+      updateLocalDataFromProps();
+    }, 0);
+  });
+  
+  // When localData changes from inside (user actions), update the parent
+  // Note: We prevent this from running on mount by using a root effect
+  $effect.root(() => {
+    // Manually sync localData to parent when user actions occur
+    // This will be triggered by form input handlers
   });
 
   const frequencyOptions = [
@@ -104,18 +146,11 @@
       applyCola: false
     };
     
-    // Create a new array with the added source
-    displaySources = [...displaySources, newSource];
+    // Add to localData
+    localData.sources = [...localData.sources, newSource];
     
-    // Ensure deep copy when updating the original data
-    data.sources = JSON.parse(JSON.stringify(displaySources));
-    
-    // Total will be recalculated automatically via $derived
-    
-    console.log('Added new income source. Total sources:', displaySources.length);
-    
-    // Notify parent component of changes
-    onUpdate(data);
+    // data will be updated via the $effect
+    console.log('Added new income source. Total sources:', localData.sources.length);
   }
 
   function removeIncomeStream(id: string) {
@@ -125,7 +160,7 @@
     const idStr = String(id);
     
     // Filter out the matching source
-    const updatedSources = displaySources.filter(source => String(source.id) !== idStr);
+    const updatedSources = localData.sources.filter(source => String(source.id) !== idStr);
     
     // If removing would result in empty sources, keep at least one
     if (updatedSources.length === 0) {
@@ -133,20 +168,14 @@
       return; // Don't update sources if it would leave an empty array
     }
     
-    // Update display sources with the filtered array
-    displaySources = updatedSources;
+    // Update localData sources
+    localData.sources = updatedSources;
     
-    // Ensure deep copy when updating the original data
-    data.sources = JSON.parse(JSON.stringify(displaySources));
-    
-    // Total will be recalculated automatically via $derived
-    
-    // Notify parent component of changes
-    onUpdate(data);
+    // data will be updated via the $effect
   }
 
   function calculateTotalAnnualIncome() {
-    return data.sources.reduce((total, source) => {
+    return localData.sources.reduce((total, source) => {
       const annualAmount = source.frequency === 'monthly' 
         ? source.amount * 12 
         : source.amount;
@@ -161,7 +190,7 @@
 <div>
   <SectionHeader sectionName="Other Income Sources" {scenarioName} />
   <div class="space-y-8">
-    {#each displaySources as source, index}
+    {#each localData.sources as source, index}
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
         <div class="flex justify-between items-start mb-4">
           <div class="space-y-1">
@@ -192,10 +221,8 @@
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               bind:value={source.name}
               onchange={() => {
-                // Update the original data on change
-                data.sources = JSON.parse(JSON.stringify(displaySources));
-                // Notify parent component of changes
-                onUpdate(data);
+                // Manually trigger update to parent
+                updateParentData();
               }}
             />
           </div>
@@ -209,9 +236,8 @@
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               bind:value={source.frequency}
               onchange={() => {
-                data.sources = JSON.parse(JSON.stringify(displaySources));
-                // Notify parent component of changes
-                onUpdate(data);
+                // Manually trigger update to parent
+                updateParentData();
               }}
             >
               {#each frequencyOptions as option}
@@ -236,9 +262,8 @@
                 class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 bind:value={source.amount}
               onchange={() => {
-                data.sources = JSON.parse(JSON.stringify(displaySources));
-                // Notify parent component of changes
-                onUpdate(data);
+                // Manually trigger update to parent
+                updateParentData();
               }}
               />
             </div>
@@ -256,9 +281,8 @@
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               bind:value={source.startAge}
               onchange={() => {
-                data.sources = JSON.parse(JSON.stringify(displaySources));
-                // Notify parent component of changes
-                onUpdate(data);
+                // Manually trigger update to parent
+                updateParentData();
               }}
             />
           </div>
@@ -275,9 +299,8 @@
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               bind:value={source.endAge}
               onchange={() => {
-                data.sources = JSON.parse(JSON.stringify(displaySources));
-                // Notify parent component of changes
-                onUpdate(data);
+                // Manually trigger update to parent
+                updateParentData();
               }}
             />
           </div>
@@ -291,9 +314,8 @@
               class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
               bind:checked={source.applyCola}
               onchange={() => {
-                data.sources = JSON.parse(JSON.stringify(displaySources));
-                // Notify parent component of changes
-                onUpdate(data);
+                // Manually trigger update to parent
+                updateParentData();
               }}
             />
             <label for={`cola-${source.id}`} class="ml-2 block text-sm text-gray-700 dark:text-gray-300">

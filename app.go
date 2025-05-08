@@ -40,6 +40,7 @@ type PensionInput struct {
 	SurvivorBenefitOption string  `json:"survivorBenefitOption"`
 	IsPartTime            bool    `json:"isPartTime"`
 	PartTimeProrationFactor float64 `json:"partTimeProrationFactor"`
+	MilitaryService       int     `json:"militaryService"`
 }
 
 // PensionResult is a minimal struct for frontend display

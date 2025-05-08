@@ -9,35 +9,31 @@
   import type { Scenario, ScenarioData } from '../types/scenario.js';
   import Dynamic from './Dynamic.svelte';
 
-  const { scenario, onUpdateScenario } = $props<{
-    scenario: Scenario;
-    onUpdateScenario: (updatedScenario: Scenario) => void;
-  }>();
+  // Use a bindable prop for two-way binding
+  let { scenario } = $props<{ scenario: Scenario }, { scenario: Scenario }>();
 
   // State with Svelte 5 runes
   let tabsByScenario = $state<Record<string | number, string>>({});
   let componentRefs = $state<Record<string, any>>({});
-  let currentScenarioId = $state<string | number | null>(null);
+
   let statusMessage = $state<{ text: string; type: string } | null>(null);
   let statusTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
 
   // Derived active tab based on the current scenario
   let activeTab = $derived(tabsByScenario[scenario?.id] || 'Pension');
-  
-  // Track when scenario changes to reset component refs
+
+  // Reset componentRefs whenever scenario.id changes (no dependency loop)
   $effect(() => {
-    if (scenario && scenario.id !== currentScenarioId) {
-      console.log('ScenarioTabs: Scenario changed from', currentScenarioId, 'to', scenario.id);
-      currentScenarioId = scenario.id;
-      componentRefs = {}; // Reset component references
-    }
+    componentRefs = {};
+    console.log('ScenarioTabs: Scenario changed, reset componentRefs');
   });
-  
+
   // Function to set the tab for the current scenario
   function setTab(newTab: string) {
     console.log(`Setting tab for scenario ${scenario.id} to ${newTab}`);
     tabsByScenario = { ...tabsByScenario, [scenario.id]: newTab };
   }
+
   
   // Tab definitions
   const tabs = [
@@ -121,21 +117,36 @@
     componentRefs = {};
   });
 
-  // Handle section updates
+  // Handle section updates with both direct binding and event dispatching
   function handleSectionUpdate<K extends keyof ScenarioData>(
     prop: K, 
     updatedData: ScenarioData[K]
   ): void {
-    // Create updated scenario with the new data
-    const newScenario = {
-      ...scenario,
-      data: {
-        ...scenario.data,
-        [prop]: updatedData
-      }
-    };
-    // Dispatch update to parent
-    onUpdateScenario(newScenario);
+    if (!scenario || !scenario.data) {
+      console.warn('Cannot update scenario: scenario or scenario.data is undefined');
+      return;
+    }
+    
+    try {
+      // Create an updated scenario with the new data
+      const updatedScenario = {
+        ...scenario,
+        data: {
+          ...scenario.data,
+          [prop]: updatedData
+        }
+      };
+      
+      // Update the local scenario via two-way binding
+      scenario = updatedScenario;
+      
+      // Also dispatch an event to notify parent components
+      dispatch('scenarioChange', updatedScenario);
+      
+      console.log(`Updated scenario.data.${String(prop)}`);
+    } catch (error) {
+      console.error('Error updating scenario:', error);
+    }
   }
 </script>
 
@@ -192,22 +203,42 @@
 
   <!-- Tab content -->
   {#each tabs as t}
-    {#if activeTab === t.label}
-      <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-        {#if t.comp}
-          <Dynamic 
-            component={t.comp}
-            data={(scenario.data as any)[t.prop]}
-            scenarioId={scenario.id}
-            scenarioName={scenario.name}
-            onUpdate={data => handleSectionUpdate(t.prop as keyof ScenarioData, data)}
-            bind:this={componentRefs[t.prop]}
-            currentAge={t.prop === 'tax' && (scenario.data as any).socialSecurity?.birthYear 
-              ? new Date().getFullYear() - (scenario.data as any).socialSecurity.birthYear 
-              : undefined}
-          />
-        {/if}
-      </div>
-    {/if}
-  {/each}
+  {#if activeTab === t.label}
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+      {#if t.label === 'Pension' && scenario && scenario.data}
+        <PensionSection 
+          data={scenario.data.pension} 
+          scenarioName={scenario.name || ''} 
+          onUpdate={(data: any) => scenario && handleSectionUpdate('pension', data)} 
+        />
+      {:else if t.comp}
+        {() => {
+          if (scenario) {
+            console.log('ScenarioTabs.svelte passing to Dynamic:', {
+              component: t.comp?.name ?? t.comp,
+              data: (scenario?.data && (scenario.data as any)[t.prop]) || {},
+              scenarioId: scenario?.id || 0,
+              scenarioName: scenario?.name || '',
+              currentAge: t.prop === 'tax' && scenario?.data && (scenario.data as any).socialSecurity?.birthYear 
+                ? new Date().getFullYear() - (scenario.data as any).socialSecurity.birthYear 
+                : undefined
+            });
+          }
+          return null;
+        }}
+        <Dynamic 
+          component={t.comp}
+          data={(scenario?.data && (scenario.data as any)[t.prop]) || {}}
+          scenarioId={scenario?.id || 0}
+          scenarioName={scenario?.name || ''}
+          onUpdate={(data: any) => scenario && handleSectionUpdate(t.prop as keyof ScenarioData, data)}
+          bind:this={componentRefs[t.prop]}
+          currentAge={t.prop === 'tax' && scenario?.data && (scenario.data as any).socialSecurity?.birthYear 
+            ? new Date().getFullYear() - (scenario.data as any).socialSecurity.birthYear 
+            : undefined}
+        />
+      {/if}
+    </div>
+  {/if}
+{/each}
 </div>

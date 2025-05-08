@@ -18,53 +18,82 @@
   };
 
   const { 
-    data: propData, 
-    onUpdate = (data: any) => {},
+    data = null, 
+    onUpdate = (data: TaxData) => {},
     scenarioName = '',
     currentAge = 65 // Default if not provided
   } = $props<{
-    data?: TaxData;
-    onUpdate?: (data: any) => void;
+    data?: TaxData | null;
+    onUpdate?: (data: TaxData) => void;
     scenarioName?: string;
     currentAge?: number;
   }>();
   
-  // Create a local copy of data that we can modify
-  const data = propData ? { ...propData } : { ...defaultData };
+  // Using $state for local data, initialized with defaults or incoming data
+  let localData = $state<TaxData>(
+    data ? { ...defaultData, ...data } : { ...defaultData }
+  );
   
-  // Set defaults for any missing fields
-  data.filingStatus = data.filingStatus || 'single';
-  data.stateOfResidence = data.stateOfResidence || 'MD';
-  data.stateIncomeTaxRate = data.stateIncomeTaxRate ?? 5;
-  data.itemizedDeductions = data.itemizedDeductions ?? 0;
-  data.federalTaxCredits = data.federalTaxCredits ?? 0;
-  data.stateTaxCredits = data.stateTaxCredits ?? 0;
-  // Note: Age is now derived from Social Security data in the parent component
-  data.spouseAge = data.spouseAge ?? 65;
+  // Store a previous version of localData as a string for comparison
+  let previousLocalDataString = $state("");
   
-  // Create local variables for UI binding with $state
-  let filingStatus = $state(data.filingStatus);
-  let stateOfResidence = $state(data.stateOfResidence);
-  let stateIncomeTaxRate = $state(data.stateIncomeTaxRate);
-  let itemizedDeductions = $state(data.itemizedDeductions);
-  let federalTaxCredits = $state(data.federalTaxCredits);
-  let stateTaxCredits = $state(data.stateTaxCredits);
-  let spouseAge = $state(data.spouseAge);
-
-  // Use $effect for reactivity
+  // Initialize previousLocalDataString after localData is defined
   $effect(() => {
-    data.filingStatus = filingStatus;
-    data.stateOfResidence = stateOfResidence;
-    data.stateIncomeTaxRate = stateIncomeTaxRate;
-    data.itemizedDeductions = itemizedDeductions;
-    data.federalTaxCredits = federalTaxCredits;
-    data.stateTaxCredits = stateTaxCredits;
-    data.spouseAge = spouseAge;
-    onUpdate({ ...data });
+    if (previousLocalDataString === "") {
+      previousLocalDataString = JSON.stringify(localData);
+    }
+  });
+  
+  // Track if we're updating from props to prevent loops
+  let updatingFromProps = $state(false);
+
+  // Manual function to update local data when props change
+  function updateLocalDataFromProps() {
+    if (!data) return;
+    
+    try {
+      const dataString = JSON.stringify(data);
+      // Only update if different
+      if (dataString !== previousLocalDataString) {
+        console.log('TaxSection: Props changed, updating local data');
+        updatingFromProps = true;
+        localData = { ...defaultData, ...data };
+        previousLocalDataString = dataString;
+      }
+    } finally {
+      updatingFromProps = false;
+    }
+  }
+
+  // Update local data when props change
+  $effect(() => {
+    if (data) {
+      updateLocalDataFromProps();
+    }
   });
 
-  // currentAge is now received via $props
+  // Manual function to update the props from localData
+  function updateParentData() {
+    if (updatingFromProps) return; // Skip if we're currently updating from props
+    
+    const currentString = JSON.stringify(localData);
+    
+    // Only update if the data has actually changed
+    if (currentString !== previousLocalDataString) {
+      console.log('TaxSection: localData changed, updating parent');
+      previousLocalDataString = currentString;
+      
+      // Create a deep copy to avoid reference issues
+      const dataForParent = JSON.parse(currentString);
+      
+      // Notify parent via callback
+      onUpdate(dataForParent);
+    }
+  }
 
+  // Using direct state values for UI binding
+  // This is simpler and avoids issues with derived bindings
+  // We'll update parent in the change handlers instead of automatically
   
   let loading = $state(false);
   let error = $state('');
@@ -145,21 +174,6 @@
     { value: 'DC', label: 'District of Columbia' }
   ];
   
-  // Update the data object whenever UI variables change
-  $effect(() => {
-    data.filingStatus = filingStatus;
-    data.stateOfResidence = stateOfResidence;
-    data.stateIncomeTaxRate = stateIncomeTaxRate;
-    data.itemizedDeductions = itemizedDeductions;
-    data.federalTaxCredits = federalTaxCredits;
-    data.stateTaxCredits = stateTaxCredits;
-    // Don't update age in data object - we'll use currentAge passed in from parent
-    data.spouseAge = spouseAge;
-    
-    // Notify parent component of changes
-    onUpdate(data);
-  });
-  
   async function calculateTaxes() {
     try {
       loading = true;
@@ -167,19 +181,19 @@
       
       // Create input object for backend
       const taxInput = new main.TaxInput();
-      taxInput.filingStatus = filingStatus;
-      taxInput.stateOfResidence = stateOfResidence;
-      taxInput.stateIncomeTaxRate = stateIncomeTaxRate;
+      taxInput.filingStatus = localData.filingStatus;
+      taxInput.stateOfResidence = localData.stateOfResidence;
+      taxInput.stateIncomeTaxRate = localData.stateIncomeTaxRate;
       taxInput.totalIncome = sampleAnnualIncome;
       taxInput.pensionIncome = samplePensionIncome;
       taxInput.socialSecurityIncome = sampleSocialSecurityIncome;
       taxInput.tspWithdrawals = sampleTSPWithdrawals;
       taxInput.nonTaxableIncome = 0;
-      taxInput.itemizedDeductions = itemizedDeductions;
-      taxInput.federalTaxCredits = federalTaxCredits;
-      taxInput.stateTaxCredits = stateTaxCredits;
+      taxInput.itemizedDeductions = localData.itemizedDeductions;
+      taxInput.federalTaxCredits = localData.federalTaxCredits;
+      taxInput.stateTaxCredits = localData.stateTaxCredits;
       taxInput.age = currentAge; // Use the age passed from parent (derived from birth year)
-      taxInput.spouseAge = spouseAge;
+      taxInput.spouseAge = localData.spouseAge;
       
       // Call backend API
       calculationResult = await CalculateTaxLiability(taxInput);
@@ -192,14 +206,17 @@
     }
   }
 
-  // Trigger calculation when relevant inputs change
+  // Function to handle explicit field changes
+  function handleFieldChange() {
+    // Update parent with new data first
+    updateParentData();
+    // Then calculate taxes with updated values
+    calculateTaxes();
+  }
+
+  // Trigger calculation when component mounts or when prop values change
   $effect(() => {
-    if (filingStatus !== undefined || 
-        stateOfResidence || 
-        stateIncomeTaxRate !== undefined ||
-        itemizedDeductions !== undefined ||
-        currentAge !== undefined ||
-        spouseAge !== undefined) {
+    if (localData && currentAge !== undefined) {
       calculateTaxes();
     }
   });
@@ -220,8 +237,8 @@
         <select 
           id="filingStatus"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={filingStatus}
-          onchange={() => onUpdate(data)}
+          bind:value={localData.filingStatus}
+          onchange={handleFieldChange}
         >
           {#each filingStatusOptions as status}
             <option value={status.value}>{status.label}</option>
@@ -236,8 +253,8 @@
         <select 
           id="stateOfResidence"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={stateOfResidence}
-          onchange={() => onUpdate(data)}
+          bind:value={localData.stateOfResidence}
+          onchange={handleFieldChange}
         >
           {#each stateOptions as state}
             <option value={state.value}>{state.label}</option>
@@ -257,12 +274,12 @@
             max="15"
             step="0.1"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={stateIncomeTaxRate}
+            bind:value={localData.stateIncomeTaxRate}
             onchange={() => {
-              if (stateIncomeTaxRate) {
-                stateIncomeTaxRate = parseFloat(stateIncomeTaxRate.toString());
+              if (typeof localData.stateIncomeTaxRate === 'string') {
+                localData.stateIncomeTaxRate = parseFloat(localData.stateIncomeTaxRate);
               }
-              onUpdate(data);
+              handleFieldChange();
             }}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -291,12 +308,12 @@
             min="55"
             max="100"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={spouseAge}
+            bind:value={localData.spouseAge}
             onchange={() => {
-              if (spouseAge) {
-                spouseAge = parseInt(spouseAge.toString());
+              if (typeof localData.spouseAge === 'string') {
+                localData.spouseAge = parseInt(localData.spouseAge);
               }
-              onUpdate(data);
+              handleFieldChange();
             }}
           />
         </div>
@@ -318,12 +335,12 @@
             min="0"
             step="500"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={itemizedDeductions}
+            bind:value={localData.itemizedDeductions}
             onchange={() => {
-              if (itemizedDeductions) {
-                itemizedDeductions = parseFloat(itemizedDeductions.toString());
+              if (typeof localData.itemizedDeductions === 'string') {
+                localData.itemizedDeductions = parseFloat(localData.itemizedDeductions);
               }
-              onUpdate(data);
+              handleFieldChange();
             }}
           />
         </div>
@@ -346,12 +363,12 @@
             min="0"
             step="100"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={federalTaxCredits}
+            bind:value={localData.federalTaxCredits}
             onchange={() => {
-              if (federalTaxCredits) {
-                federalTaxCredits = parseFloat(federalTaxCredits.toString());
+              if (typeof localData.federalTaxCredits === 'string') {
+                localData.federalTaxCredits = parseFloat(localData.federalTaxCredits);
               }
-              onUpdate(data);
+              handleFieldChange();
             }}
           />
         </div>
@@ -371,12 +388,12 @@
             min="0"
             step="100"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={stateTaxCredits}
+            bind:value={localData.stateTaxCredits}
             onchange={() => {
-              if (stateTaxCredits) {
-                stateTaxCredits = parseFloat(stateTaxCredits.toString());
+              if (typeof localData.stateTaxCredits === 'string') {
+                localData.stateTaxCredits = parseFloat(localData.stateTaxCredits);
               }
-              onUpdate(data);
+              handleFieldChange();
             }}
           />
         </div>

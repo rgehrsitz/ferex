@@ -284,6 +284,7 @@ export namespace main {
 	    survivorBenefitOption: string;
 	    isPartTime: boolean;
 	    partTimeProrationFactor: number;
+	    militaryService: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new PensionInput(source);
@@ -299,6 +300,7 @@ export namespace main {
 	        this.survivorBenefitOption = source["survivorBenefitOption"];
 	        this.isPartTime = source["isPartTime"];
 	        this.partTimeProrationFactor = source["partTimeProrationFactor"];
+	        this.militaryService = source["militaryService"];
 	    }
 	}
 	export class ScenarioData {

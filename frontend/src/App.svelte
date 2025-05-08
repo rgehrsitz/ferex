@@ -25,13 +25,163 @@
 
   // Debug: log scenarios array whenever it changes
   $effect(() => {
-    console.log('App scenarios updated', scenarios);
+    // Use $state.snapshot to avoid Svelte proxy warnings
+    console.log('App scenarios updated', $state.snapshot(scenarios));
   });
 
-  // Derived state for selected scenario
-  const foundScenario = $derived(
-    scenarios.find((s: Scenario) => s.id === selectedScenarioId)
+  // Compute index of selected scenario for two-way binding
+  let selectedScenarioIndex = $derived(
+    scenarios.findIndex((s: Scenario) => s.id === selectedScenarioId)
   );
+
+  // Use a simple reference to the selected scenario that's not reactive itself
+  // This avoids creating reactivity cycles while still allowing the component to work
+  let storedSelectedScenario: Scenario | null = null;
+  
+  // Instead of having automatic reactive bindings, we'll use a controlled approach
+  // with explicit functions for copying between scenario states
+
+  // Get the current selected scenario from the scenarios array based on the ID
+  function getSelectedScenarioFromArray(): Scenario | null {
+    if (selectedScenarioIndex < 0) {
+      return null;
+    }
+    return scenarios[selectedScenarioIndex] || null;
+  }
+  
+  // Manual function to update the scenarios array with changes from a component
+  function updateScenario(updatedScenario: Scenario): void {
+    if (!updatedScenario || !updatedScenario.id) return;
+    
+    // Find the index of the scenario to update
+    const index = scenarios.findIndex(s => s.id === updatedScenario.id);
+    if (index < 0) return;
+    
+    // Create a new array and update the specific scenario
+    const newScenarios = [...scenarios];
+    newScenarios[index] = { ...updatedScenario };
+    
+    // Update the scenarios array with the new value
+    scenarios = newScenarios;
+    
+    // Also update our stored selected scenario if it's the one that was updated
+    if (selectedScenarioId === updatedScenario.id) {
+      storedSelectedScenario = { ...updatedScenario };
+    }
+    
+    console.log(`Updated scenario ${updatedScenario.id} in array`);
+  }
+  
+  // Make sure a scenario has all required data properties
+  function ensureScenarioData(scenario: Scenario): Scenario {
+    if (!scenario) return scenario;
+    
+    // Initialize data if it doesn't exist
+    if (!scenario.data) {
+      scenario.data = {};
+    }
+    
+    // Initialize all required sections
+    if (!scenario.data.pension) {
+      scenario.data.pension = {
+        system: 'FERS',
+        high3Salary: 100000,
+        yearsOfService: 30,
+        ageAtRetirement: 62,
+        unusedSickLeaveMonths: 6,
+        survivorBenefitOption: 'full',
+        isPartTime: false,
+        partTimeProrationFactor: 1.0,
+        militaryService: 0
+      };
+    }
+    
+    if (!scenario.data.socialSecurity) {
+      scenario.data.socialSecurity = {
+        startAge: 62,
+        estimatedMonthlyBenefit: 2000,
+        isEligible: true,
+        birthYear: 1970,
+        birthMonth: 1
+      };
+    }
+    
+    if (!scenario.data.tsp) {
+      scenario.data.tsp = {
+        traditionalBalance: 400000,
+        rothBalance: 100000,
+        contributionRate: 5,
+        contributionRateRoth: 5,
+        expectedReturn: 6,
+        withdrawalStrategy: 'fixed',
+        fixedMonthlyWithdrawal: 2000,
+        withdrawalRate: 4,
+        withdrawalStartAge: 62
+      };
+    }
+    
+    if (!scenario.data.tax) {
+      scenario.data.tax = {
+        filingStatus: 'married_joint',
+        stateOfResidence: 'VA',
+        stateIncomeTaxRate: 0.05,
+        itemizedDeductions: 0,
+        federalTaxCredits: 0,
+        stateTaxCredits: 0,
+        age: 62,
+        spouseAge: 62
+      };
+    }
+    
+    if (!scenario.data.cola) {
+      scenario.data.cola = {
+        assumedInflationRate: 2.5,
+        applyCOLAToPension: true,
+        applyColaToSocialSecurity: true
+      };
+    }
+    
+    if (!scenario.data.otherIncome) {
+      scenario.data.otherIncome = {
+        sources: []
+      };
+    }
+    
+    return scenario;
+  }
+
+  // This computed property is what we pass to components
+  // It gets the current scenario in a way that won't create an infinite loop
+  let selectedScenario = $derived({
+    // This is a getter that will be called when components read this property
+    get() {
+      // If we don't have a stored scenario, or we need to refresh it,
+      // get it from the array
+      if (!storedSelectedScenario || storedSelectedScenario.id !== selectedScenarioId) {
+        const currentScenario = getSelectedScenarioFromArray();
+        if (currentScenario) {
+          // Store a clone to avoid reference issues
+          const scenarioClone = JSON.parse(JSON.stringify(currentScenario));
+          // Make sure it has all required data
+          storedSelectedScenario = ensureScenarioData(scenarioClone);
+        } else {
+          storedSelectedScenario = null;
+        }
+      }
+      return storedSelectedScenario;
+    },
+    // This is a setter that will be called when components update this property
+    set(value: Scenario | null) {
+      if (!value) {
+        storedSelectedScenario = null;
+        return;
+      }
+      // Store the new value with all required data
+      storedSelectedScenario = ensureScenarioData({ ...value });
+      // Update the scenarios array with the changes
+      updateScenario(storedSelectedScenario);
+    }
+  });
 
   function addScenarioHandler(): void {
     if (!scenarios || scenarios.length === 0) {
@@ -86,9 +236,7 @@
     compareScenarioId = id;
   }
 
-  function handleUpdateScenario(scenario: Scenario): void {
-    scenarios = scenarios.map((s: Scenario) => s.id === scenario.id ? scenario : s);
-  }
+  // Function no longer needed as we're using two-way binding with bind:scenario
 
   async function saveScenarios(): Promise<void> {
     if (!filename) {
@@ -418,10 +566,10 @@
           compareScenario={scenarios.find((s: Scenario) => s.id === compareScenarioId) ?? null}
         />
       {:else if selectedScenarioId}
-        {#if foundScenario}
+        {#if selectedScenarioIndex >= 0 && selectedScenario}
           <ScenarioTabs
-            scenario={foundScenario}
-            onUpdateScenario={handleUpdateScenario}
+            bind:scenario={selectedScenario}
+            on:scenarioChange={e => updateScenario(e.detail)}
           />
         {/if}
       {:else}
