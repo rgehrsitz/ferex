@@ -212,20 +212,7 @@
           onUpdate={(data: any) => scenario && handleSectionUpdate('pension', data)} 
         />
       {:else if t.comp}
-        {() => {
-          if (scenario) {
-            console.log('ScenarioTabs.svelte passing to Dynamic:', {
-              component: t.comp?.name ?? t.comp,
-              data: (scenario?.data && (scenario.data as any)[t.prop]) || {},
-              scenarioId: scenario?.id || 0,
-              scenarioName: scenario?.name || '',
-              currentAge: t.prop === 'tax' && scenario?.data && (scenario.data as any).socialSecurity?.birthYear 
-                ? new Date().getFullYear() - (scenario.data as any).socialSecurity.birthYear 
-                : undefined
-            });
-          }
-          return null;
-        }}
+        <!-- Debug logging removed to fix UI rendering issue -->
         <Dynamic 
           component={t.comp}
           data={(scenario?.data && (scenario.data as any)[t.prop]) || {}}

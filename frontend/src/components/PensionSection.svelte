@@ -63,6 +63,8 @@
   $effect(() => {
     if (data) {
       updateLocalDataFromProps();
+      // Also calculate pension whenever data changes
+      calculatePension();
     }
   });
 
