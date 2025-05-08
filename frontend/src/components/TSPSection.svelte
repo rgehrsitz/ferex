@@ -48,7 +48,7 @@
     onUpdate?: (data: any) => void;
   }>();
   
-  // Create a local copy of data that we can modify
+  // Default data values
   const defaultData = {
     traditionalBalance: 400000,
     rothBalance: 100000,
@@ -61,48 +61,76 @@
     withdrawalStartAge: 62
   };
   
-  // Use propData if available, otherwise use defaults
-  const data = propData ? { ...propData } : { ...defaultData };
+  // Using $state for local data, initialized with defaults or incoming data
+  let localData = $state<TSPData>(
+    propData ? { ...defaultData, ...propData } : { ...defaultData }
+  );
   
-  // Set defaults for any missing fields
-  data.traditionalBalance = data.traditionalBalance ?? 400000;
-  data.rothBalance = data.rothBalance ?? 100000;
-  data.contributionRate = data.contributionRate ?? 5;
-  data.contributionRateRoth = data.contributionRateRoth ?? 5;
-  data.expectedReturn = data.expectedReturn ?? 6;
-  data.withdrawalStrategy = data.withdrawalStrategy ?? 'percentage';
-  data.withdrawalRate = data.withdrawalRate ?? 4;
-  data.fixedMonthlyWithdrawal = data.fixedMonthlyWithdrawal ?? 2000;
-  data.withdrawalStartAge = data.withdrawalStartAge ?? 62;
+  // Store a previous version of localData as a string for comparison
+  let previousLocalDataString = $state("");
   
-  // Create local variables for UI binding
-  let traditionalBalance = $state(data.traditionalBalance);
-  let rothBalance = $state(data.rothBalance);
-  let contributionRate = $state(data.contributionRate);
-  let contributionRateRoth = $state(data.contributionRateRoth);
-  let expectedReturn = $state(data.expectedReturn);
-  let withdrawalStrategy = $state(data.withdrawalStrategy);
-  let withdrawalRate = $state(data.withdrawalRate);
-  let fixedMonthlyWithdrawal = $state(data.fixedMonthlyWithdrawal);
-  let withdrawalStartAge = $state(data.withdrawalStartAge);
-
-  // Update the data object whenever UI fields change
+  // Initialize previousLocalDataString after localData is defined
   $effect(() => {
-    data.traditionalBalance = traditionalBalance;
-    data.rothBalance = rothBalance;
-    data.contributionRate = contributionRate;
-    data.contributionRateRoth = contributionRateRoth;
-    data.expectedReturn = expectedReturn;
-    data.withdrawalStrategy = withdrawalStrategy;
-    data.withdrawalRate = withdrawalRate;
-    data.fixedMonthlyWithdrawal = fixedMonthlyWithdrawal;
-    data.withdrawalStartAge = withdrawalStartAge;
-    
-    console.log('TSPSection updating data, tsp data now:', data);
-    
-    // Notify parent component of changes
-    onUpdate(data);
+    if (previousLocalDataString === "") {
+      previousLocalDataString = JSON.stringify(localData);
+    }
   });
+  
+  // Track if we're updating from props to prevent loops
+  let updatingFromProps = $state(false);
+
+  // Manual function to update local data when props change
+  function updateLocalDataFromProps() {
+    if (!propData) return;
+    
+    try {
+      const dataString = JSON.stringify(propData);
+      // Only update if different
+      if (dataString !== previousLocalDataString) {
+        console.log('TSPSection: Props changed, updating local data');
+        updatingFromProps = true;
+        localData = { ...defaultData, ...propData };
+        previousLocalDataString = dataString;
+      }
+    } finally {
+      updatingFromProps = false;
+    }
+  }
+
+  // Update local data when props change - but only on initial props or when they actually change
+  let previousPropString = $state('');
+  
+  $effect(() => {
+    if (propData) {
+      const propString = JSON.stringify(propData);
+      if (propString !== previousPropString) {
+        previousPropString = propString;
+        updateLocalDataFromProps();
+      }
+    }
+  });
+
+  // Manual function to update the props from localData
+  function updateParentData() {
+    if (updatingFromProps) return; // Skip if we're currently updating from props
+    
+    const currentString = JSON.stringify(localData);
+    
+    // Only update if the data has actually changed
+    if (currentString !== previousLocalDataString) {
+      console.log('TSPSection: localData changed, updating parent');
+      previousLocalDataString = currentString;
+      
+      // Create a deep copy to avoid reference issues
+      const dataForParent = JSON.parse(currentString);
+      
+      // Notify parent via callback
+      onUpdate(dataForParent);
+    }
+  }
+  
+  // For backward compatibility in the template
+  const data = $derived(localData);
   
   
   let loading = $state(false);
@@ -127,8 +155,8 @@
   ];
   
   async function calculateTSPProjection() {
-    // Don't calculate if data isn't initialized
-    if (!data) return;
+    // Don't calculate if localData isn't initialized
+    if (!localData) return;
     
     try {
       loading = true;
@@ -137,22 +165,22 @@
       // Calculate annual contribution from percentages (estimate)
       const estimatedSalary = 100000; // Default estimate for annual salary
       const annualContribution = (
-        (data.contributionRate / 100) * estimatedSalary + 
-        (data.contributionRateRoth / 100) * estimatedSalary
+        (localData.contributionRate / 100) * estimatedSalary + 
+        (localData.contributionRateRoth / 100) * estimatedSalary
       );
       
       // Create input object for backend
       const tspInput = new main.TSPInput();
-      // Use data values
-      tspInput.currentBalance = data.traditionalBalance + data.rothBalance;
-      tspInput.traditionalBalance = data.traditionalBalance;
-      tspInput.rothBalance = data.rothBalance;
+      // Use localData values
+      tspInput.currentBalance = localData.traditionalBalance + localData.rothBalance;
+      tspInput.traditionalBalance = localData.traditionalBalance;
+      tspInput.rothBalance = localData.rothBalance;
       tspInput.annualContribution = annualContribution;
-      tspInput.expectedReturnRate = data.expectedReturn / 100; // Convert percentage to decimal
-      tspInput.withdrawalStrategy = data.withdrawalStrategy;
-      tspInput.fixedWithdrawalAmount = data.fixedMonthlyWithdrawal * 12; // Convert to annual
-      tspInput.withdrawalPercentage = data.withdrawalRate / 100; // Convert percentage to decimal
-      tspInput.withdrawalStartAge = data.withdrawalStartAge;
+      tspInput.expectedReturnRate = localData.expectedReturn / 100; // Convert percentage to decimal
+      tspInput.withdrawalStrategy = localData.withdrawalStrategy;
+      tspInput.fixedWithdrawalAmount = localData.fixedMonthlyWithdrawal * 12; // Convert to annual
+      tspInput.withdrawalPercentage = localData.withdrawalRate / 100; // Convert percentage to decimal
+      tspInput.withdrawalStartAge = localData.withdrawalStartAge;
       
       // Use data from userStore when available
       let userBirthYear, userBirthMonth;
@@ -166,7 +194,7 @@
       const currentYear = new Date().getFullYear();
       tspInput.birthYear = userBirthYear || currentYear - 40;
       tspInput.birthMonth = userBirthMonth || 1;
-      tspInput.retirementAge = parseInt(String(data.withdrawalStartAge || 62), 10);
+      tspInput.retirementAge = parseInt(String(localData.withdrawalStartAge || 62), 10);
       
       // Call backend API via the store
       projectionResult = await api.calculateTSP(tspInput);
@@ -176,8 +204,8 @@
       
       // Fix any zero withdrawals in the table
       if (projectionResult && projectionResult.yearlyData) {
-        const withdrawalStartsAt = parseInt(String(data.withdrawalStartAge || 62), 10);
-        const withdrawalRate = parseFloat(String(data.withdrawalRate || 0)) / 100;
+        const withdrawalStartsAt = parseInt(String(localData.withdrawalStartAge || 62), 10);
+        const withdrawalRate = parseFloat(String(localData.withdrawalRate || 0)) / 100;
         
         // Check if we have any withdrawals in years where we should
         const hasWithdrawals = projectionResult.yearlyData.some((year: { age: number; withdrawals: number }) => 
@@ -194,11 +222,11 @@
               // Calculate expected withdrawal based on strategy
               let expectedWithdrawal = 0;
               
-              if (data.withdrawalStrategy === 'percentage') {
+              if (localData.withdrawalStrategy === 'percentage') {
                 expectedWithdrawal = yearData.startingBalance * withdrawalRate;
-              } else if (data.withdrawalStrategy === 'fixed') {
-                expectedWithdrawal = parseFloat(String(data.fixedMonthlyWithdrawal || 0)) * 12;
-              } else if (data.withdrawalStrategy === 'rmd') {
+              } else if (localData.withdrawalStrategy === 'fixed') {
+                expectedWithdrawal = parseFloat(String(localData.fixedMonthlyWithdrawal || 0)) * 12;
+              } else if (localData.withdrawalStrategy === 'rmd') {
                 // Simple RMD approximation
                 const lifeExpectancy = Math.max(90 - yearData.age, 10);
                 expectedWithdrawal = yearData.startingBalance / lifeExpectancy;
@@ -226,14 +254,14 @@
       
       return {
         annualWithdrawal: getAnnualWithdrawal(),
-        totalBalance: data.traditionalBalance + data.rothBalance
+        totalBalance: localData.traditionalBalance + localData.rothBalance
       };
     } catch (err) {
       console.error("Error calculating TSP projection:", err);
       error = 'Failed to calculate TSP projection. Please try again.';
       return {
         annualWithdrawal: 0,
-        totalBalance: data.traditionalBalance + data.rothBalance
+        totalBalance: localData.traditionalBalance + localData.rothBalance
       };
     } finally {
       loading = false;
@@ -251,19 +279,19 @@ function someFunctionWithYear(year: number) {
 
 
   function getAnnualWithdrawal(): number {
-    if (!data) return 0;
+    if (!localData) return 0;
     
-    const totalBalance = data.traditionalBalance + data.rothBalance;
+    const totalBalance = localData.traditionalBalance + localData.rothBalance;
     
     // First, determine a calculated withdrawal amount based on strategy,
     // even if the simulation doesn't show withdrawals yet
     let calculatedWithdrawal = 0;
     
-    if (data.withdrawalStrategy === 'percentage') {
-      calculatedWithdrawal = totalBalance * (data.withdrawalRate / 100);
-    } else if (data.withdrawalStrategy === 'fixed') {
-      calculatedWithdrawal = data.fixedMonthlyWithdrawal * 12;
-    } else if (data.withdrawalStrategy === 'rmd') {
+    if (localData.withdrawalStrategy === 'percentage') {
+      calculatedWithdrawal = totalBalance * (localData.withdrawalRate / 100);
+    } else if (localData.withdrawalStrategy === 'fixed') {
+      calculatedWithdrawal = localData.fixedMonthlyWithdrawal * 12;
+    } else if (localData.withdrawalStrategy === 'rmd') {
       // RMD simplified approximation (divide by years remaining)
       // For ages 59.5 to 72, divide by 25 as a rough approximation
       calculatedWithdrawal = totalBalance / 25;
@@ -273,7 +301,7 @@ function someFunctionWithYear(year: number) {
     if (projectionResult && projectionResult.yearlyData && projectionResult.yearlyData.length > 0) {
       // Find withdrawal year that matches withdrawal start age
       const withdrawalYear = projectionResult.yearlyData.find((year: { age: number; withdrawals: number }) => 
-        year.age >= data.withdrawalStartAge
+        year.age >= localData.withdrawalStartAge
       );
       
       // If we found a withdrawal year and it has withdrawals, use that value
@@ -345,9 +373,9 @@ function someFunctionWithYear(year: number) {
   $effect(() => {
     annualWithdrawal = getAnnualWithdrawal() || 0;
     monthlyWithdrawal = isNaN(annualWithdrawal) ? 0 : annualWithdrawal / 12;
-    totalBalance = traditionalBalance + rothBalance;
+    totalBalance = localData.traditionalBalance + localData.rothBalance;
     yearsUntilDepletion = projectionResult.notes?.match(/Balance depleted at age (\d+)/) 
-                          ? parseInt(projectionResult.notes.match(/Balance depleted at age (\d+)/)[1]) - withdrawalStartAge
+                          ? parseInt(projectionResult.notes.match(/Balance depleted at age (\d+)/)[1]) - localData.withdrawalStartAge
                           : '30+';
   });
 </script>
@@ -370,7 +398,8 @@ function someFunctionWithYear(year: number) {
             min="0"
             step="10000"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={traditionalBalance}
+            bind:value={localData.traditionalBalance}
+            onchange={updateParentData}
           />
         </div>
       </div>
@@ -389,7 +418,8 @@ function someFunctionWithYear(year: number) {
             min="0"
             step="10000"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={rothBalance}
+            bind:value={localData.rothBalance}
+            onchange={updateParentData}
           />
         </div>
       </div>
@@ -405,7 +435,8 @@ function someFunctionWithYear(year: number) {
             min="0"
             max="100"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={contributionRate}
+            bind:value={localData.contributionRate}
+            onchange={updateParentData}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
             <span class="text-gray-500 dark:text-gray-400 sm:text-sm">%</span>
@@ -427,7 +458,8 @@ function someFunctionWithYear(year: number) {
             min="0"
             max="100"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={contributionRateRoth}
+            bind:value={localData.contributionRateRoth}
+            onchange={updateParentData}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
             <span class="text-gray-500 dark:text-gray-400 sm:text-sm">%</span>
@@ -452,7 +484,8 @@ function someFunctionWithYear(year: number) {
             max="20"
             step="0.1"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={expectedReturn}
+            bind:value={localData.expectedReturn}
+            onchange={updateParentData}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
             <span class="text-gray-500 dark:text-gray-400 sm:text-sm">%</span>
@@ -473,7 +506,8 @@ function someFunctionWithYear(year: number) {
           min="55"
           max="75"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={withdrawalStartAge}
+          bind:value={localData.withdrawalStartAge}
+          onchange={updateParentData}
         />
       </div>
 
@@ -484,7 +518,8 @@ function someFunctionWithYear(year: number) {
         <select 
           id="withdrawalStrategy"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={withdrawalStrategy}
+          bind:value={localData.withdrawalStrategy}
+          onchange={updateParentData}
         >
           {#each withdrawalStrategies as strategy}
             <option value={strategy.value}>{strategy.label}</option>
@@ -492,7 +527,7 @@ function someFunctionWithYear(year: number) {
         </select>
       </div>
 
-      {#if withdrawalStrategy === 'percentage'}
+      {#if localData.withdrawalStrategy === 'percentage'}
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="withdrawalRate">
             Annual Withdrawal Rate
@@ -505,7 +540,8 @@ function someFunctionWithYear(year: number) {
               max="20"
               step="0.1"
               class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              bind:value={withdrawalRate}
+              bind:value={localData.withdrawalRate}
+              onchange={updateParentData}
             />
             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
               <span class="text-gray-500 dark:text-gray-400 sm:text-sm">%</span>
@@ -515,7 +551,7 @@ function someFunctionWithYear(year: number) {
             Enter as whole number (e.g. 4 for 4%)
           </p>
         </div>
-      {:else if withdrawalStrategy === 'fixed'}
+      {:else if localData.withdrawalStrategy === 'fixed'}
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="fixedMonthlyWithdrawal">
             Fixed Monthly Withdrawal
@@ -530,7 +566,8 @@ function someFunctionWithYear(year: number) {
               min="0"
               step="100"
               class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              bind:value={fixedMonthlyWithdrawal}
+              bind:value={localData.fixedMonthlyWithdrawal}
+              onchange={updateParentData}
             />
           </div>
         </div>
@@ -622,8 +659,8 @@ function someFunctionWithYear(year: number) {
               {#each projectionResult.yearlyData.slice(0, projectionYears) as yearData, yearIndex}
 <!-- All function parameters typed below -->
 <!-- Example: function foo(bar: number) {} -->
-                <tr class="{yearData.age >= data.withdrawalStartAge ? 'bg-green-50 dark:bg-green-900/20' : ''} hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200">{String(yearData.age)}{yearData.age >= data.withdrawalStartAge ? ' ↩️' : ''}</td>
+                <tr class="{yearData.age >= localData.withdrawalStartAge ? 'bg-green-50 dark:bg-green-900/20' : ''} hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200">{String(yearData.age)}{yearData.age >= localData.withdrawalStartAge ? ' ↩️' : ''}</td>
                   <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200">{String(yearData.year)}</td>
                   <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200 text-right">
                     ${yearData.startingBalance.toLocaleString(undefined, { maximumFractionDigits: 0 })}
@@ -635,9 +672,9 @@ function someFunctionWithYear(year: number) {
                   <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200 text-right">
                     ${yearData.returns.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </td>
-                  <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm {yearData.age >= data.withdrawalStartAge ? 'font-semibold' : ''} {yearData.withdrawals > 0 ? 'text-green-700 dark:text-green-400' : 'text-gray-800 dark:text-gray-200'} text-right">
+                  <td class="py-2 px-3 border-b border-gray-200 dark:border-gray-700 text-sm {yearData.age >= localData.withdrawalStartAge ? 'font-semibold' : ''} {yearData.withdrawals > 0 ? 'text-green-700 dark:text-green-400' : 'text-gray-800 dark:text-gray-200'} text-right">
                     ${yearData.withdrawals.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    {#if yearData.age === data.withdrawalStartAge && yearData.withdrawals === 0}
+                    {#if yearData.age === localData.withdrawalStartAge && yearData.withdrawals === 0}
                       <span class="text-xs text-orange-600 dark:text-orange-400 block">Withdrawals begin</span>
                     {/if}
                   </td>

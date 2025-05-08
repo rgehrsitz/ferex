@@ -65,10 +65,16 @@
     }
   }
 
-  // Update local data when props change
+  // Update local data when props change - but only on initial props or when they actually change
+  let previousPropString = $state('');
+  
   $effect(() => {
     if (data) {
-      updateLocalDataFromProps();
+      const propString = JSON.stringify(data);
+      if (propString !== previousPropString) {
+        previousPropString = propString;
+        updateLocalDataFromProps();
+      }
     }
   });
 
@@ -207,6 +213,8 @@
   }
 
   // Function to handle explicit field changes
+  // No need to create a data alias - we need to update all references in the template
+
   function handleFieldChange() {
     // Update parent with new data first
     updateParentData();
@@ -220,6 +228,10 @@
       calculateTaxes();
     }
   });
+
+  // Create a compatibility object for backward references
+  // This is a temporary fix to prevent "data is not defined" errors
+  // We don't need this since data is already defined as a prop
 
   const effectiveFederalRate = $derived(calculationResult.effectiveFederalRate * 100 || 0);
   const effectiveStateRate = $derived(calculationResult.effectiveStateRate * 100 || 0);
@@ -297,7 +309,7 @@
         </div>
       </div>
       
-      {#if filingStatus === 'married_joint'}
+      {#if localData.filingStatus === 'married_joint'}
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="spouseAge">
             Spouse Age

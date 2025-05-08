@@ -1,6 +1,7 @@
 <script lang="ts">
   import PensionSection from './PensionSection.svelte';
   import SocialSecuritySection from './SocialSecuritySection.svelte';
+  import SocialSecurityWrapper from './SocialSecurityWrapper.svelte';
   import TSPSection from './TSPSection.svelte';
   import TaxSection from './TaxSection.svelte';
   import COLASection from './COLASection.svelte';
@@ -212,7 +213,17 @@
           onUpdate={(data: any) => scenario && handleSectionUpdate('pension', data)} 
         />
       {:else if t.comp}
-        <!-- Debug logging removed to fix UI rendering issue -->
+        <!-- Adding debug logging -->
+        {() => {
+          console.log('ScenarioTabs - DEBUG:', {
+            component: t.comp?.name || 'UnnamedComponent',
+            prop: t.prop,
+            scenarioData: scenario?.data,
+            propData: (scenario?.data && (scenario.data as any)[t.prop]) || {},
+            scenarioId: scenario?.id || 0
+          });
+          return null;
+        }}
         <Dynamic 
           component={t.comp}
           data={(scenario?.data && (scenario.data as any)[t.prop]) || {}}

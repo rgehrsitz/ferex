@@ -23,18 +23,76 @@
     onUpdate?: (data: COLAData) => void;
   }>();
   
-  // Create a local copy of data that we can modify
-  const data = propData ? { ...propData } : { ...defaultData };
+  // Using $state for local data, initialized with defaults or incoming data
+  let localData = $state<COLAData>(
+    propData ? { ...defaultData, ...propData } : { ...defaultData }
+  );
   
-  // Set defaults for any missing fields
-  data.assumedInflationRate = data.assumedInflationRate ?? 2.5;
-  data.applyCOLAToPension = data.applyCOLAToPension ?? true;
-  data.applyColaToSocialSecurity = data.applyColaToSocialSecurity ?? true;
+  // Store a previous version of localData as a string for comparison
+  let previousLocalDataString = $state("");
   
-  // Create local variables for UI binding with $state
-  let assumedInflationRate = $state(data.assumedInflationRate);
-  let applyCOLAToPension = $state(data.applyCOLAToPension);
-  let applyColaToSocialSecurity = $state(data.applyColaToSocialSecurity);
+  // Initialize previousLocalDataString after localData is defined
+  $effect(() => {
+    if (previousLocalDataString === "") {
+      previousLocalDataString = JSON.stringify(localData);
+    }
+  });
+  
+  // Track if we're updating from props to prevent loops
+  let updatingFromProps = $state(false);
+
+  // Manual function to update local data when props change
+  function updateLocalDataFromProps() {
+    if (!propData) return;
+    
+    try {
+      const dataString = JSON.stringify(propData);
+      // Only update if different
+      if (dataString !== previousLocalDataString) {
+        console.log('COLASection: Props changed, updating local data');
+        updatingFromProps = true;
+        localData = { ...defaultData, ...propData };
+        previousLocalDataString = dataString;
+      }
+    } finally {
+      updatingFromProps = false;
+    }
+  }
+
+  // Update local data when props change - but only on initial props or when they actually change
+  let previousPropString = $state('');
+  
+  $effect(() => {
+    if (propData) {
+      const propString = JSON.stringify(propData);
+      if (propString !== previousPropString) {
+        previousPropString = propString;
+        updateLocalDataFromProps();
+      }
+    }
+  });
+
+  // Manual function to update the props from localData
+  function updateParentData() {
+    if (updatingFromProps) return; // Skip if we're currently updating from props
+    
+    const currentString = JSON.stringify(localData);
+    
+    // Only update if the data has actually changed
+    if (currentString !== previousLocalDataString) {
+      console.log('COLASection: localData changed, updating parent');
+      previousLocalDataString = currentString;
+      
+      // Create a deep copy to avoid reference issues
+      const dataForParent = JSON.parse(currentString);
+      
+      // Notify parent via callback
+      onUpdate(dataForParent);
+    }
+  }
+  
+  // For backward compatibility in the template
+  const data = $derived(localData);
 
   let loading = $state(false);
   let error = $state('');
@@ -63,14 +121,6 @@
     { value: 'CSRS', label: 'CSRS COLA', description: 'Matches full inflation rate with no caps' },
     { value: 'Social Security', label: 'Social Security COLA', description: 'Based on CPI-W, usually similar to general inflation' }
   ];
-
-  // Use $effect for reactivity instead of $: statements
-  $effect(() => {
-    data.assumedInflationRate = assumedInflationRate;
-    data.applyCOLAToPension = applyCOLAToPension;
-    data.applyColaToSocialSecurity = applyColaToSocialSecurity;
-    onUpdate(data);
-  });
   
   async function calculateCOLA() {
     try {
@@ -79,9 +129,9 @@
       
       // Create input object for backend
       const colaInput = new main.COLAInput();
-      colaInput.assumedInflationRate = assumedInflationRate / 100; // Convert to decimal
-      colaInput.applyCOLAToPension = applyCOLAToPension;
-      colaInput.applyColaToSocialSecurity = applyColaToSocialSecurity;
+      colaInput.assumedInflationRate = localData.assumedInflationRate / 100; // Convert to decimal
+      colaInput.applyCOLAToPension = localData.applyCOLAToPension;
+      colaInput.applyColaToSocialSecurity = localData.applyColaToSocialSecurity;
       colaInput.baseAmount = baseAmount;
       colaInput.retirementSystem = selectedSystem;
       colaInput.retirementAge = 60; // Default for calculation
@@ -94,7 +144,7 @@
       calculationResult = await CalculateCOLAAdjustment(colaInput);
       
       // Calculate example COLAs for display
-      calculateEstimatedFirstYearCOLA(assumedInflationRate);
+      calculateEstimatedFirstYearCOLA(localData.assumedInflationRate);
       
       return calculationResult;
     } catch (err) {
@@ -121,7 +171,7 @@
     // Return FERS COLA, CSRS COLA (which is the full inflation rate),
     // and approximate SS COLA (using inflation as proxy)
     return {
-      fers: applyCOLAToPension ? fersCOLA * 100 : inflationRate,
+      fers: localData.applyCOLAToPension ? fersCOLA * 100 : inflationRate,
       csrs: inflationRate,
       socialSecurity: inflationRate
     };
@@ -129,15 +179,15 @@
   
   // Trigger calculation when relevant inputs change
   $effect(() => {
-    if (assumedInflationRate !== undefined || 
-        applyCOLAToPension !== undefined || 
-        applyColaToSocialSecurity !== undefined ||
+    if (localData.assumedInflationRate !== undefined || 
+        localData.applyCOLAToPension !== undefined || 
+        localData.applyColaToSocialSecurity !== undefined ||
         selectedSystem) {
       calculateCOLA();
     }
   });
 
-  const estCOLA = $derived(calculateEstimatedFirstYearCOLA(assumedInflationRate));
+  const estCOLA = $derived(calculateEstimatedFirstYearCOLA(localData.assumedInflationRate));
 </script>
 
 <div>
@@ -156,12 +206,12 @@
             max="10"
             step="0.1"
             class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={assumedInflationRate}
+            bind:value={localData.assumedInflationRate}
             onchange={() => {
-              if (assumedInflationRate) {
-                assumedInflationRate = parseFloat(assumedInflationRate.toString());
+              if (typeof localData.assumedInflationRate === 'string') {
+                localData.assumedInflationRate = parseFloat(localData.assumedInflationRate);
               }
-              onUpdate(data);
+              updateParentData();
             }}
           />
           <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -175,8 +225,8 @@
           id="applyCOLAToPension"
           type="checkbox"
           class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-          bind:checked={applyCOLAToPension}
-          onchange={() => onUpdate(data)}
+          bind:checked={localData.applyCOLAToPension}
+          onchange={updateParentData}
         />
         <label for="applyCOLAToPension" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Apply COLA to Pension
@@ -188,8 +238,8 @@
           id="applyColaToSocialSecurity"
           type="checkbox"
           class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-          bind:checked={applyColaToSocialSecurity}
-          onchange={() => onUpdate(data)}
+          bind:checked={localData.applyColaToSocialSecurity}
+          onchange={updateParentData}
         />
         <label for="applyColaToSocialSecurity" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Apply COLA to Social Security

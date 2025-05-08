@@ -26,56 +26,93 @@
     onUpdate?: (data: any) => void;
   }>();
   
-  // Create a local copy of the data to work with
-  const inputData = propData ? { ...propData } : { ...defaultData };
+  // Using $state for local data, initialized with defaults or incoming data
+  let localData = $state<SocialSecurityData>(
+    propData ? { ...defaultData, ...propData } : { ...defaultData }
+  );
   
-  // Set defaults for any missing fields
-  if (propData) {
-    inputData.startAge = propData.startAge ?? defaultData.startAge;
-    inputData.estimatedMonthlyBenefit = propData.estimatedMonthlyBenefit ?? defaultData.estimatedMonthlyBenefit;
-    inputData.isEligible = propData.isEligible ?? defaultData.isEligible;
-    inputData.birthYear = propData.birthYear ?? defaultData.birthYear;
-    inputData.birthMonth = propData.birthMonth ?? defaultData.birthMonth;
+  // Store a previous version of localData as a string for comparison
+  let previousLocalDataString = $state("");
+  
+  // Initialize previousLocalDataString after localData is defined
+  $effect(() => {
+    if (previousLocalDataString === "") {
+      previousLocalDataString = JSON.stringify(localData);
+    }
+  });
+  
+  // Track if we're updating from props to prevent loops
+  let updatingFromProps = $state(false);
+
+  // Manual function to update local data when props change
+  function updateLocalDataFromProps() {
+    if (!propData) return;
     
-    // Make sure birthMonth is stored as a number
-    if (typeof inputData.birthMonth === 'string') {
-      inputData.birthMonth = parseInt(String(inputData.birthMonth), 10);
+    try {
+      const dataString = JSON.stringify(propData);
+      // Only update if different
+      if (dataString !== previousLocalDataString) {
+        console.log('SocialSecuritySection: Props changed, updating local data');
+        updatingFromProps = true;
+        localData = { ...defaultData, ...propData };
+        
+        // Make sure certain fields are the correct type
+        if (typeof localData.birthMonth === 'string') {
+          localData.birthMonth = parseInt(String(localData.birthMonth), 10);
+        }
+        
+        // Ensure these fields exist with defaults
+        localData.ssaEstimateAt62 = localData.ssaEstimateAt62 || 0;
+        localData.ssaEstimateAtFRA = localData.ssaEstimateAtFRA || 0;
+        localData.ssaEstimateAt70 = localData.ssaEstimateAt70 || 0;
+        
+        previousLocalDataString = JSON.stringify(localData);
+      }
+    } finally {
+      updatingFromProps = false;
     }
   }
 
-  // Create local state variables with Svelte 5 runes
-  let startAge = $state(inputData.startAge);
-  let estimatedMonthlyBenefit = $state(inputData.estimatedMonthlyBenefit);
-  let isEligible = $state(inputData.isEligible);
-  let birthYear = $state(inputData.birthYear);
-  let birthMonth = $state(inputData.birthMonth);
+  // Update local data when props change - but only on initial props or when they actually change
+  let previousPropString = $state('');
   
-  // Add SSA estimates as state variables
-  let ssaEstimateAt62 = $state(inputData.ssaEstimateAt62 || 0);
-  let ssaEstimateAtFRA = $state(inputData.ssaEstimateAtFRA || 0);
-  let ssaEstimateAt70 = $state(inputData.ssaEstimateAt70 || 0);
-
-  // Use $effect to monitor changes and notify parent
   $effect(() => {
-    // Create a new data object with current values
-    const updatedData = {
-      startAge,
-      estimatedMonthlyBenefit,
-      isEligible,
-      birthYear,
-      birthMonth,
-      ssaEstimateAt62,
-      ssaEstimateAtFRA,
-      ssaEstimateAt70
-    };
-    
-    // Notify parent component
-    onUpdate(updatedData);
+    if (propData) {
+      const propString = JSON.stringify(propData);
+      if (propString !== previousPropString) {
+        previousPropString = propString;
+        updateLocalDataFromProps();
+        // Log the local data for debugging
+        console.log('SocialSecuritySection localData:', JSON.stringify(localData));
+      }
+    }
   });
+
+  // Manual function to update the props from localData
+  function updateParentData() {
+    if (updatingFromProps) return; // Skip if we're currently updating from props
+    
+    const currentString = JSON.stringify(localData);
+    
+    // Only update if the data has actually changed
+    if (currentString !== previousLocalDataString) {
+      console.log('SocialSecuritySection: localData changed, updating parent');
+      previousLocalDataString = currentString;
+      
+      // Create a deep copy to avoid reference issues
+      const dataForParent = JSON.parse(currentString);
+      
+      // Notify parent via callback
+      onUpdate(dataForParent);
+    }
+  }
 
   // Handle all field changes in a single function
   function handleFieldChange() {
     console.log('SocialSecuritySection updating data - field changed');
+    
+    // Update parent with new data
+    updateParentData();
     
     // Try to calculate on change
     checkAndCalculate();
@@ -118,47 +155,52 @@
   const currentYear = new Date().getFullYear();
   
   // Make the function accessible from outside
-  export async function calculateSocialSecurity() {
+  // We need to find and fix all references to data in the template
+
+  // Debugging function is no longer needed as we've resolved the issue
+// Remove to prevent unnecessary effects
+
+export async function calculateSocialSecurity() {
     try {
       loading = true;
       error = '';
       
       // Validate required inputs
-      if (!data.birthYear) {
+      if (!localData.birthYear) {
         throw new Error("Birth year is required");
       }
       
-      if (data.birthYear < 1900 || data.birthYear > currentYear - 20) {
+      if (localData.birthYear < 1900 || localData.birthYear > currentYear - 20) {
         throw new Error(`Birth year must be between 1900 and ${currentYear - 20}`);
       }
       
-      if (!data.startAge) {
+      if (!localData.startAge) {
         throw new Error("Benefit start age is required");
       }
       
       // Create input object for backend
       const ssInput = new main.SocialSecurityInput();
       // Ensure all numeric values are properly converted to numbers
-      ssInput.startAge = parseInt(String(data.startAge || 62), 10);
-      ssInput.estimatedMonthlyBenefit = parseFloat(String(data.estimatedMonthlyBenefit || 0));
-      ssInput.isEligible = data.isEligible !== undefined ? data.isEligible : true;
-      ssInput.birthYear = parseInt(String(data.birthYear || 1960), 10);
-      ssInput.birthMonth = parseInt(String(data.birthMonth || 1), 10);
-      ssInput.currentAge = currentYear - parseInt(String(data.birthYear || 1960), 10);
+      ssInput.startAge = parseInt(String(localData.startAge || 62), 10);
+      ssInput.estimatedMonthlyBenefit = parseFloat(String(localData.estimatedMonthlyBenefit || 0));
+      ssInput.isEligible = localData.isEligible !== undefined ? localData.isEligible : true;
+      ssInput.birthYear = parseInt(String(localData.birthYear || 1960), 10);
+      ssInput.birthMonth = parseInt(String(localData.birthMonth || 1), 10);
+      ssInput.currentAge = currentYear - parseInt(String(localData.birthYear || 1960), 10);
       
       // For estimation - default values if not available
       ssInput.estimatedAnnualSalary = 60000; // Default annual salary for estimation
       ssInput.yearsWorked = 35; // Default years worked for estimation
       
       // If SSA estimates are provided, use them - ensure they're numbers
-      if (data.ssaEstimateAt62 && data.ssaEstimateAt62 > 0) {
-        ssInput.userProvidedEstimate62 = parseFloat(String(data.ssaEstimateAt62));
+      if (localData.ssaEstimateAt62 && localData.ssaEstimateAt62 > 0) {
+        ssInput.userProvidedEstimate62 = parseFloat(String(localData.ssaEstimateAt62));
       }
-      if (data.ssaEstimateAtFRA && data.ssaEstimateAtFRA > 0) {
-        ssInput.userProvidedEstimateFRA = parseFloat(String(data.ssaEstimateAtFRA));
+      if (localData.ssaEstimateAtFRA && localData.ssaEstimateAtFRA > 0) {
+        ssInput.userProvidedEstimateFRA = parseFloat(String(localData.ssaEstimateAtFRA));
       }
-      if (data.ssaEstimateAt70 && data.ssaEstimateAt70 > 0) {
-        ssInput.userProvidedEstimate70 = parseFloat(String(data.ssaEstimateAt70));
+      if (localData.ssaEstimateAt70 && localData.ssaEstimateAt70 > 0) {
+        ssInput.userProvidedEstimate70 = parseFloat(String(localData.ssaEstimateAt70));
       }
       
       // Call backend API via the store
@@ -184,7 +226,7 @@
         return calculationResult.claimingMonthlyAmount * 12;
       } else {
         // Fallback calculation based on monthly benefit estimate
-        return (data.estimatedMonthlyBenefit || 0) * 12;
+        return (localData.estimatedMonthlyBenefit || 0) * 12;
       }
     } catch (err) {
       console.error("Error calculating Social Security:", err);
@@ -193,7 +235,8 @@
         // Check for the specific birthMonth type error from the Go backend
         if (err.message.includes("birthMonth") && err.message.includes("type")) {
           // Fix the type issue and retry
-          data.birthMonth = parseInt(String(data.birthMonth), 10);
+          localData.birthMonth = parseInt(String(localData.birthMonth), 10);
+          updateParentData();
           error = "Birth month format fixed. Please try calculating again.";
         } else {
           error = `Error: ${err.message}`;
@@ -219,10 +262,9 @@
         calculationResult = savedResult;
         
         // Also update the estimated monthly benefit if it was empty
-        if (!data.estimatedMonthlyBenefit && calculationResult.claimingMonthlyAmount) {
-          estimatedMonthlyBenefit = calculationResult.claimingMonthlyAmount;
-          data.estimatedMonthlyBenefit = estimatedMonthlyBenefit;
-          onUpdate({ ...data });
+        if (!localData.estimatedMonthlyBenefit && calculationResult.claimingMonthlyAmount) {
+          localData.estimatedMonthlyBenefit = calculationResult.claimingMonthlyAmount;
+          updateParentData();
         }
       } else {
         // If no saved result and we have enough data, calculate
@@ -232,6 +274,13 @@
       console.error('Error loading saved calculation:', err);
     }
   });
+  
+  // For template references that might use data directly
+  // Define a static compatibility object - not reactive to avoid update loops
+  const data = {
+    startAge: localData.startAge,
+    birthYear: localData.birthYear
+  };
   
   // No timers to clean up
   
@@ -250,7 +299,7 @@
   // Simplified auto-calculation approach
   function checkAndCalculate() {
     // We can call this on any field change
-    if (data.birthYear && data.startAge) {
+    if (localData.birthYear && localData.startAge) {
       calculateSocialSecurity();
     }
   }
@@ -264,21 +313,21 @@
       // Use result from calculation if available
       monthly = calculationResult.claimingMonthlyAmount;
       annual = calculationResult.claimingAnnualAmount || monthly * 12;
-    } else if (estimatedMonthlyBenefit && estimatedMonthlyBenefit > 0) {
+    } else if (localData.estimatedMonthlyBenefit && localData.estimatedMonthlyBenefit > 0) {
       // Fallback to data directly
-      monthly = estimatedMonthlyBenefit;
+      monthly = localData.estimatedMonthlyBenefit;
       annual = monthly * 12;
-    } else if (ssaEstimateAt62 && startAge === 62) {
+    } else if (localData.ssaEstimateAt62 && localData.startAge === 62) {
       // Use SSA estimate if we have it and it matches claim age
-      monthly = ssaEstimateAt62;
+      monthly = localData.ssaEstimateAt62;
       annual = monthly * 12;
-    } else if (ssaEstimateAtFRA && startAge === 67) {
+    } else if (localData.ssaEstimateAtFRA && localData.startAge === 67) {
       // Use FRA estimate
-      monthly = ssaEstimateAtFRA;
+      monthly = localData.ssaEstimateAtFRA;
       annual = monthly * 12;
-    } else if (ssaEstimateAt70 && startAge === 70) {
+    } else if (localData.ssaEstimateAt70 && localData.startAge === 70) {
       // Use age 70 estimate
-      monthly = ssaEstimateAt70;
+      monthly = localData.ssaEstimateAt70;
       annual = monthly * 12;
     }
     
@@ -287,8 +336,9 @@
     monthlyBenefit = monthly;
     
     // Update estimate if it's not already set
-    if (monthly > 0 && estimatedMonthlyBenefit === 0) {
-      estimatedMonthlyBenefit = monthly;
+    if (monthly > 0 && !localData.estimatedMonthlyBenefit) {
+      localData.estimatedMonthlyBenefit = monthly;
+      updateParentData();
     }
   });
 </script>
@@ -312,11 +362,11 @@
           min="1930"
           max="2000"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={birthYear}
+          bind:value={localData.birthYear}
           onchange={() => {
             // Ensure stored as number
-            if (typeof birthYear === 'string') {
-              birthYear = parseInt(birthYear, 10);
+            if (typeof localData.birthYear === 'string') {
+              localData.birthYear = parseInt(localData.birthYear, 10);
             }
             handleFieldChange();
           }}
@@ -330,11 +380,11 @@
         <select 
           id="birthMonth"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={birthMonth}
+          bind:value={localData.birthMonth}
           onchange={() => {
             // Ensure birthMonth is stored as a number
-            if (typeof birthMonth === 'string') {
-              birthMonth = parseInt(birthMonth, 10);
+            if (typeof localData.birthMonth === 'string') {
+              localData.birthMonth = parseInt(localData.birthMonth, 10);
             }
             handleFieldChange();
           }}
@@ -361,11 +411,11 @@
         <select 
           id="startAge"
           class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          bind:value={startAge}
+          bind:value={localData.startAge}
           onchange={() => {
             // Ensure startAge is stored as a number
-            if (typeof startAge === 'string') {
-              startAge = parseInt(startAge, 10);
+            if (typeof localData.startAge === 'string') {
+              localData.startAge = parseInt(localData.startAge, 10);
             }
             handleFieldChange();
           }}
@@ -381,7 +431,7 @@
           id="isEligible"
           type="checkbox"
           class="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-          bind:checked={isEligible}
+          bind:checked={localData.isEligible}
           onchange={handleFieldChange}
         />
         <label for="isEligible" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
@@ -410,10 +460,10 @@
             min="0"
             step="50"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={ssaEstimateAt62}
+            bind:value={localData.ssaEstimateAt62}
           onchange={() => {
-              if (typeof ssaEstimateAt62 === 'string') {
-                ssaEstimateAt62 = parseFloat(ssaEstimateAt62);
+              if (typeof localData.ssaEstimateAt62 === 'string') {
+                localData.ssaEstimateAt62 = parseFloat(localData.ssaEstimateAt62);
               }
               handleFieldChange();
             }}
@@ -435,10 +485,10 @@
             min="0"
             step="50"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={ssaEstimateAtFRA}
+            bind:value={localData.ssaEstimateAtFRA}
           onchange={() => {
-              if (typeof ssaEstimateAtFRA === 'string') {
-                ssaEstimateAtFRA = parseFloat(ssaEstimateAtFRA);
+              if (typeof localData.ssaEstimateAtFRA === 'string') {
+                localData.ssaEstimateAtFRA = parseFloat(localData.ssaEstimateAtFRA);
               }
               handleFieldChange();
             }}
@@ -460,10 +510,10 @@
             min="0"
             step="50"
             class="w-full pl-7 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            bind:value={ssaEstimateAt70}
+            bind:value={localData.ssaEstimateAt70}
           onchange={() => {
-              if (typeof ssaEstimateAt70 === 'string') {
-                ssaEstimateAt70 = parseFloat(ssaEstimateAt70);
+              if (typeof localData.ssaEstimateAt70 === 'string') {
+                localData.ssaEstimateAt70 = parseFloat(localData.ssaEstimateAt70);
               }
               handleFieldChange();
             }}
@@ -475,7 +525,7 @@
       <button
         class="mt-4 w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
         onclick={calculateSocialSecurity}
-        disabled={loading || !data.birthYear || !data.startAge}
+        disabled={loading || !localData.birthYear || !localData.startAge}
       >
         {#if loading}
           <span class="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 dark:border-primary-400"></span>
@@ -512,13 +562,13 @@
     {:else}
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <div class="text-sm text-gray-500 dark:text-gray-400">Annual Benefit at Age {data.startAge || 62}</div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">Annual Benefit at Age {localData.startAge || 62}</div>
           <div class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
             ${(isNaN(annualBenefit) ? 0 : annualBenefit).toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </div>
         </div>
         <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-          <div class="text-sm text-gray-500 dark:text-gray-400">Monthly Benefit at Age {data.startAge || 62}</div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">Monthly Benefit at Age {localData.startAge || 62}</div>
           <div class="text-2xl font-semibold text-gray-800 dark:text-gray-200">
             ${(isNaN(monthlyBenefit) ? 0 : monthlyBenefit).toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </div>
