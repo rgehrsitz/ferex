@@ -1,9 +1,11 @@
 <script lang="ts">
   // Svelte V5 idioms: props only, no stores
-  export let selectedScenario: import('../types/scenario.js').Scenario | null;
-  export let compareScenario: import('../types/scenario.js').Scenario | null;
-
   import { onMount } from 'svelte';
+  // Svelte 5 runes mode: use $props for props
+  const { selectedScenario, compareScenario } = $props<{
+    selectedScenario: import('../types/scenario.js').Scenario | null;
+    compareScenario: import('../types/scenario.js').Scenario | null;
+  }>();
   import { CalculateRetirementProjection } from '../../wailsjs/go/main/App.js';
   import { main } from '../../wailsjs/go/models.js';
   import type { Scenario } from '../types/scenario.js';
@@ -12,16 +14,16 @@
   import MonthlyIncomeDeltaChart from './charts/SimpleMonthlyDeltaChart.svelte';
   import IncomeSourceChart from './charts/SimpleIncomeSourceChart.svelte';
 
-  let loading = false;
-  let error = '';
-  let selectedProjection: any = null;
-  let compareProjection: any = null;
+  let loading = $state(false);
+  let error = $state('');
+  let selectedProjection = $state<any>(null);
+  let compareProjection = $state<any>(null);
 
-  // Svelte 5 idiom: use $: for derived values
-  $: selectedNetTotal = selectedProjection?.netIncomeTotal ?? 0;
-  $: compareNetTotal = compareProjection?.netIncomeTotal ?? 0;
-  $: netIncomeDifference = selectedNetTotal - compareNetTotal;
-  $: cumulativeDifference = (selectedProjection?.cumulativeIncomeTotal ?? 0) - (compareProjection?.cumulativeIncomeTotal ?? 0);
+  // Svelte 5 idiom: use $derived for derived values
+  const selectedNetTotal = $derived(selectedProjection?.netIncomeTotal ?? 0);
+  const compareNetTotal = $derived(compareProjection?.netIncomeTotal ?? 0);
+  const netIncomeDifference = $derived(selectedNetTotal - compareNetTotal);
+  const cumulativeDifference = $derived((selectedProjection?.cumulativeIncomeTotal ?? 0) - (compareProjection?.cumulativeIncomeTotal ?? 0));
 
   // Chart visibility controls
   let activeCharts = {
@@ -57,24 +59,9 @@ const scenarioInput2 = createProjectionInput(compareScenario);
       compareProjection = projection2;
       
       // Calculate summary statistics
-      if (projection1 && projection2) {
-        selectedNetTotal = projection1.totalNetIncome;
-        compareNetTotal = projection2.totalNetIncome;
-        netIncomeDifference = compareNetTotal - selectedNetTotal;
-        
-        // Calculate cumulative difference over projection period
-        const maxYears = Math.max(
-          projection1.yearlyData?.length || 0,
-          projection2.yearlyData?.length || 0
-        );
-        
-        cumulativeDifference = 0;
-        for (let i = 0; i < maxYears; i++) {
-          const year1Income = projection1.yearlyData[i]?.netIncome || 0;
-          const year2Income = projection2.yearlyData[i]?.netIncome || 0;
-          cumulativeDifference += (year2Income - year1Income);
-        }
-      }
+      // No assignments to $derived variables! Let Svelte reactivity handle updates.
+      // If you need a local cumulative sum for another purpose, use a local variable here.
+      // All display and logic using selectedNetTotal, compareNetTotal, netIncomeDifference, or cumulativeDifference will update automatically via $derived.
       
     } catch (err) {
       console.error("Error running projections:", err);
@@ -332,7 +319,7 @@ const scenarioInput2 = createProjectionInput(compareScenario);
             class:dark:text-gray-200={!activeCharts.monthlyIncome}
             class:border-gray-300={!activeCharts.monthlyIncome}
             class:dark:border-gray-600={!activeCharts.monthlyIncome}
-            on:click={() => activeCharts.monthlyIncome = !activeCharts.monthlyIncome}>
+            onclick={() => activeCharts.monthlyIncome = !activeCharts.monthlyIncome}>
             Monthly Income
           </button>
           
@@ -347,7 +334,7 @@ const scenarioInput2 = createProjectionInput(compareScenario);
             class:dark:text-gray-200={!activeCharts.cumulativeIncome}
             class:border-gray-300={!activeCharts.cumulativeIncome}
             class:dark:border-gray-600={!activeCharts.cumulativeIncome}
-            on:click={() => activeCharts.cumulativeIncome = !activeCharts.cumulativeIncome}>
+            onclick={() => activeCharts.cumulativeIncome = !activeCharts.cumulativeIncome}>
             Cumulative Income
           </button>
           
@@ -362,7 +349,7 @@ const scenarioInput2 = createProjectionInput(compareScenario);
             class:dark:text-gray-200={!activeCharts.monthlyDelta}
             class:border-gray-300={!activeCharts.monthlyDelta}
             class:dark:border-gray-600={!activeCharts.monthlyDelta}
-            on:click={() => activeCharts.monthlyDelta = !activeCharts.monthlyDelta}>
+            onclick={() => activeCharts.monthlyDelta = !activeCharts.monthlyDelta}>
             Income Delta
           </button>
           
@@ -377,7 +364,7 @@ const scenarioInput2 = createProjectionInput(compareScenario);
             class:dark:text-gray-200={!activeCharts.incomeSource}
             class:border-gray-300={!activeCharts.incomeSource}
             class:dark:border-gray-600={!activeCharts.incomeSource}
-            on:click={() => activeCharts.incomeSource = !activeCharts.incomeSource}>
+            onclick={() => activeCharts.incomeSource = !activeCharts.incomeSource}>
             Income Sources
           </button>
         </div>
@@ -438,7 +425,7 @@ const scenarioInput2 = createProjectionInput(compareScenario);
       <p class="text-gray-600 dark:text-gray-400">No projection data available. Click the Calculate button to run retirement projections.</p>
       <button 
         class="mt-4 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:bg-primary-700 dark:hover:bg-primary-600"
-        on:click={runProjections}>
+        onclick={runProjections}>
         Calculate Projections
       </button>
     </div>

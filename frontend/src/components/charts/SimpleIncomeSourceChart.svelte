@@ -3,14 +3,16 @@
   import SimpleChartComponent from './SimpleChartComponent.svelte';
 
   // Props
-  export let selectedProjection: any = null;
-  export let compareProjection: any = null;
-  export let selectedScenario: any = null;
-  export let compareScenario: any = null;
+  const { selectedProjection, compareProjection, selectedScenario, compareScenario } = $props<{
+    selectedProjection: any;
+    compareProjection: any;
+    selectedScenario: any;
+    compareScenario: any;
+  }>();
 
   // State
-  let activeScenario: 'A' | 'B' = 'A'; // Default to scenario A
-  let chartData: { labels: string[]; datasets: any[] } = { labels: [], datasets: [] };
+  let activeScenario = $state<'A' | 'B'>('A'); // Default to scenario A
+  let chartData = $state<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
 
   let chartOptions: Record<string, any> = {
     scales: {
@@ -120,11 +122,13 @@
     };
   }
   
-  // Update data when projections or active scenario changes
-  $: if ((activeScenario === 'A' && selectedProjection) || 
-         (activeScenario === 'B' && compareProjection)) {
-    prepareChartData();
-  }
+  // Update data when projections or active scenario changes (Svelte 5 runes mode)
+  $effect(() => {
+    if ((activeScenario === 'A' && selectedProjection) || 
+        (activeScenario === 'B' && compareProjection)) {
+      prepareChartData();
+    }
+  });
   
   // Initialize on mount
   onMount(() => {
@@ -148,7 +152,7 @@
         class:dark:bg-gray-700={activeScenario !== 'A'}
         class:text-gray-800={activeScenario !== 'A'} 
         class:dark:text-gray-200={activeScenario !== 'A'}
-        on:click={() => toggleScenario('A')}>
+        onclick={() => toggleScenario('A')}>
         {selectedScenario?.name || 'Scenario A'}
       </button>
       
@@ -160,7 +164,7 @@
         class:dark:bg-gray-700={activeScenario !== 'B'}
         class:text-gray-800={activeScenario !== 'B'} 
         class:dark:text-gray-200={activeScenario !== 'B'}
-        on:click={() => toggleScenario('B')}>
+        onclick={() => toggleScenario('B')}>
         {compareScenario?.name || 'Scenario B'}
       </button>
     </div>

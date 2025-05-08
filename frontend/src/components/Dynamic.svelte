@@ -9,4 +9,8 @@
   const { component, ...restProps } = props;
 </script>
 
-<svelte:element this={Component} {...restProps} />
+{#if typeof Component === 'string'}
+  <svelte:element this={Component} {...restProps} />
+{:else}
+  <!-- Invalid component: not a string. Optionally render nothing or fallback. -->
+{/if}

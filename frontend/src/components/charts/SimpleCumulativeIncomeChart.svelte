@@ -3,12 +3,14 @@
   import SimpleChartComponent from './SimpleChartComponent.svelte';
 
   // Props
-  export let selectedProjection: any = null;
-  export let compareProjection: any = null;
-  export let selectedScenario: any = null;
-  export let compareScenario: any = null;
+  const { selectedProjection, compareProjection, selectedScenario, compareScenario } = $props<{
+    selectedProjection: any;
+    compareProjection: any;
+    selectedScenario: any;
+    compareScenario: any;
+  }>();
 
-  let chartData: { labels: string[]; datasets: any[] } = { labels: [], datasets: [] };
+  let chartData = $state<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
 
   let chartOptions: Record<string, any> = {
     scales: {
@@ -97,10 +99,12 @@
     };
   }
   
-  // Update data when projections change
-  $: if (selectedProjection && compareProjection) {
-    prepareChartData();
-  }
+  // Update data when projections change (Svelte 5 runes mode)
+  $effect(() => {
+    if (selectedProjection && compareProjection) {
+      prepareChartData();
+    }
+  });
   
   // Initialize on mount
   onMount(() => {
