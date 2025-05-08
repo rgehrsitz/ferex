@@ -31,6 +31,10 @@
 
   // Function to set the tab for the current scenario
   function setTab(newTab: string) {
+    if (!scenario || typeof scenario.id === 'undefined') {
+      console.warn('setTab called but scenario or scenario.id is undefined', scenario);
+      return;
+    }
     console.log(`Setting tab for scenario ${scenario.id} to ${newTab}`);
     tabsByScenario = { ...tabsByScenario, [scenario.id]: newTab };
   }
@@ -149,6 +153,7 @@
       console.error('Error updating scenario:', error);
     }
   }
+
 </script>
 
 <div>
@@ -206,23 +211,20 @@
   {#each tabs as t}
   {#if activeTab === t.label}
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-      {#if t.label === 'Pension' && scenario && scenario.data}
+      {#if t.label === 'Pension' && scenario && scenario.data && scenario.data.pension}
         <PensionSection 
-          data={scenario.data.pension} 
+          bind:data={scenario.data.pension} 
           scenarioName={scenario.name || ''} 
-          onUpdate={(data: any) => scenario && handleSectionUpdate('pension', data)} 
         />
-      {:else if t.comp}
-        <!-- Debug logging removed -->
+      {:else if t.comp && scenario && scenario.data && scenario.data[t.prop]}
         <Dynamic 
           component={t.comp}
-          data={(scenario?.data && (scenario.data as any)[t.prop]) || {}}
+          bind:data={scenario.data[t.prop]}
           scenarioId={scenario?.id || 0}
           scenarioName={scenario?.name || ''}
-          onUpdate={(data: any) => scenario && handleSectionUpdate(t.prop as keyof ScenarioData, data)}
           bind:this={componentRefs[t.prop]}
-          currentAge={t.prop === 'tax' && scenario?.data && (scenario.data as any).socialSecurity?.birthYear 
-            ? new Date().getFullYear() - (scenario.data as any).socialSecurity.birthYear 
+          currentAge={t.prop === 'tax' && scenario?.data && scenario.data.socialSecurity?.birthYear 
+            ? new Date().getFullYear() - scenario.data.socialSecurity.birthYear 
             : undefined}
         />
       {/if}
