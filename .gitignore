@@ -30,3 +30,6 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# JavaScript dependencies
+ferex_legacy/frontend/node_modules/
