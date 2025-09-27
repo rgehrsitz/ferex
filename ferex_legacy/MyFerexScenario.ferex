@@ -1,0 +1,124 @@
+{
+  "fileFormatVersion": "1.0.1",
+  "lastOpenedAppVersion": "0.2.0",
+  "userProfile": {
+    "birthDate": "1965-02-25",
+    "mraYears": 0,
+    "mraMonths": 0
+  },
+  "variants": [
+    {
+      "variantId": "962cee8f-4906-4eb0-9ed1-884c9e131e3c",
+      "variantName": "Default Scenario",
+      "createdAt": "2025-06-20T14:50:43.452Z",
+      "lastModified": "2025-06-20T22:18:26.786Z",
+      "calculationSystem": "FERS",
+      "high3Salary": 190000,
+      "serviceComputationDate": "1987-06-22",
+      "dateOfBirth": "1965-02-25",
+      "plannedRetirementDate": "2027-02-28",
+      "unusedSickLeaveHoursAtRetirement": 1870,
+      "servicePeriods": [
+        {
+          "id": "09378d4b-0d8a-4c29-a592-4b3aeb2adcac",
+          "serviceCategory": "Civilian",
+          "civilianServiceType": "RegularDeductionFERS",
+          "depositRedepositPaymentStatus": "NotApplicable",
+          "systemDuringService": "FERS",
+          "startDate": "1987-06-22",
+          "endDate": "2027-02-28",
+          "isPartTime": false,
+          "notes": "Auto-created to span SCD to retirement date."
+        }
+      ],
+      "isMarriedAtRetirement": true,
+      "fersCoverageType": "FERS",
+      "estimatedSSBenefitAt62ForSRS": 0,
+      "switchedToFERSDate": "",
+      "survivorBenefitFERS": {
+        "spouseElection": "None",
+        "formerSpouseConsent": "NotApplicable",
+        "currentSpouseConsentForFormer": "NotApplicable",
+        "currentSpouseWaiverForSelf": "NotApplicable"
+      },
+      "survivorBenefitCSRS": {
+        "formerSpouseConsent": "NotApplicable",
+        "currentSpouseConsentForFormer": "NotApplicable",
+        "currentSpouseWaiverForSelf": "NotApplicable"
+      },
+      "userProvidedSSBenefitAmount1": 2795,
+      "userProvidedSSBenefitClaimingAge1": 62,
+      "userProvidedSSBenefitAmount2": 5000,
+      "userProvidedSSBenefitClaimingAge2": 70,
+      "userSSClaimingAge": 62,
+      "userAssumedSSCOLA": 2,
+      "socialSecurityEstimate": 4012,
+      "spouseBirthDate": "1963-07-31",
+      "tspBalanceTraditional": 1800000,
+      "tspContributeUntil": "Retirement",
+      "tspContributionAllocationTraditionalPercent": 100,
+      "tspContributionAllocationRothPercent": 0,
+      "tspContributionAllocationToFunds": {
+        "G": 20,
+        "F": 20,
+        "C": 20,
+        "S": 20,
+        "I": 20
+      },
+      "tspCurrentAllocationToFunds": {
+        "G": 42,
+        "F": 5,
+        "C": 27,
+        "S": 9,
+        "I": 17,
+        "LFundName": "L 2030"
+      },
+      "tspPostRetirementAllocation": {
+        "G": 100,
+        "F": 0,
+        "C": 0,
+        "S": 0,
+        "I": 0
+      },
+      "tspFutureAllocationStrategy": "MaintainCurrent",
+      "userReturnAssumptionsTSP": {
+        "G": 2,
+        "F": 2.5,
+        "C": 7,
+        "S": 7.5,
+        "I": 6.5
+      },
+      "tspExpenseRatio": 0.05,
+      "tspExpectedAnnualGrowthRatePreRetirement": 4,
+      "tspWithdrawalStrategy": "PercentageOfBalanceYearly",
+      "tspWithdrawalPercentageValue": 0.04,
+      "tspWithdrawalStartDate": "Retirement",
+      "tspWithdrawalOrder": "ProRata",
+      "applyRMDsToTSP": true,
+      "tspVolatilityAssumptions": {
+        "gStdDev": 0.5,
+        "fStdDev": 3,
+        "cStdDev": 15,
+        "sStdDev": 18,
+        "iStdDev": 16
+      },
+      "fegliBasicCoverage": true,
+      "fegliOptionAAmount": 0,
+      "fegliOptionBCoverageMultiples": 0,
+      "fegliOptionCCoverageMultiples": 0,
+      "fegliPost65Reduction": "FullReduction",
+      "fehbBiweeklyDeduction": 488,
+      "fehbContinuedInRetirement": true,
+      "fehbProjectedPremiumIncreaseRate": 5,
+      "federalTaxFilingStatus": "MarriedFilingJointly",
+      "federalTaxNumberOfDependents": 0,
+      "federalTaxLawAssumption": "CurrentLaw",
+      "stateOfResidenceForTax": "Pennsylvania",
+      "userAssumedGeneralInflationRate": 2.5,
+      "userAssumedPensionCOLA_FERS": 2,
+      "userAssumedPensionCOLA_CSRS": 2,
+      "isSpendingGoalInflationAdjusted": false
+    }
+  ],
+  "lastViewedVariantID": "962cee8f-4906-4eb0-9ed1-884c9e131e3c"
+}

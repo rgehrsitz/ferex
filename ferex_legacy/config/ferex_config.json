@@ -1,0 +1,719 @@
+{
+  "version": "2025.1",
+  "lastUpdated": "2025-01-24",
+  "tsp": {
+    "contributionLimits": {
+      "maxAgencyMatchPercentage": 0.05,
+      "standardEmployeeContributionForMaxMatch": 0.05,
+      "agencyAutomaticContributionPercentage": 0.01,
+      "catchUpContributionLimit": 7500,
+      "maxRegularContributionLimit": 23000,
+      "year": 2024
+    },
+    "lFundBaseCompositions": {
+      "LIncome": {
+        "g": 71.22,
+        "f": 6.51,
+        "c": 11.72,
+        "s": 2.81,
+        "i": 7.74
+      },
+      "L2025": {
+        "g": 69.32,
+        "f": 6.64,
+        "c": 12.71,
+        "s": 3.17,
+        "i": 8.16
+      },
+      "L2030": {
+        "g": 42.00,
+        "f": 5.00,
+        "c": 27.00,
+        "s": 9.00,
+        "i": 17.00
+      },
+      "L2035": {
+        "g": 34.00,
+        "f": 5.00,
+        "c": 31.00,
+        "s": 11.00,
+        "i": 19.00
+      },
+      "L2040": {
+        "g": 26.00,
+        "f": 5.00,
+        "c": 35.00,
+        "s": 13.00,
+        "i": 21.00
+      },
+      "L2045": {
+        "g": 18.00,
+        "f": 5.00,
+        "c": 39.00,
+        "s": 15.00,
+        "i": 23.00
+      },
+      "L2050": {
+        "g": 10.00,
+        "f": 5.00,
+        "c": 43.00,
+        "s": 17.00,
+        "i": 25.00
+      },
+      "L2055": {
+        "g": 6.00,
+        "f": 4.00,
+        "c": 47.00,
+        "s": 19.00,
+        "i": 24.00
+      },
+      "L2060": {
+        "g": 6.00,
+        "f": 4.00,
+        "c": 47.00,
+        "s": 19.00,
+        "i": 24.00
+      },
+      "L2065": {
+        "g": 6.00,
+        "f": 4.00,
+        "c": 47.00,
+        "s": 19.00,
+        "i": 24.00
+      }
+    },
+    "lFundTargetComposition": {
+      "g": 71.22,
+      "f": 6.51,
+      "c": 11.72,
+      "s": 2.81,
+      "i": 7.74
+    },
+    "uniformLifetimeTable": {
+      "72": 27.4,
+      "73": 26.5,
+      "74": 25.5,
+      "75": 24.6,
+      "76": 23.7,
+      "77": 22.9,
+      "78": 22.0,
+      "79": 21.1,
+      "80": 20.2,
+      "81": 19.4,
+      "82": 18.5,
+      "83": 17.7,
+      "84": 16.8,
+      "85": 16.0,
+      "86": 15.2,
+      "87": 14.4,
+      "88": 13.7,
+      "89": 12.9,
+      "90": 12.2,
+      "91": 11.5,
+      "92": 10.8,
+      "93": 10.1,
+      "94": 9.5,
+      "95": 8.9,
+      "96": 8.4,
+      "97": 7.8,
+      "98": 7.3,
+      "99": 6.8,
+      "100": 6.4,
+      "101": 6.0,
+      "102": 5.6,
+      "103": 5.3,
+      "104": 5.0,
+      "105": 4.7,
+      "106": 4.4,
+      "107": 4.1,
+      "108": 3.9,
+      "109": 3.6,
+      "110": 3.4,
+      "111": 3.2,
+      "112": 3.0,
+      "113": 2.8,
+      "114": 2.6,
+      "115": 2.4,
+      "116": 2.2,
+      "117": 2.0,
+      "118": 1.9,
+      "119": 1.7,
+      "120": 1.6
+    },
+    "rmdStartAgeRules": [
+      {
+        "birthYearStart": 1900,
+        "birthYearEnd": 1950,
+        "startAge": 72
+      },
+      {
+        "birthYearStart": 1951,
+        "birthYearEnd": 1959,
+        "startAge": 73
+      },
+      {
+        "birthYearStart": 1960,
+        "birthYearEnd": 2100,
+        "startAge": 75
+      }
+    ]
+  },
+  "federalTax": {
+    "taxYear": 2025,
+    "brackets": {
+      "Single": [
+        {"rate": 0.10, "min": 0, "max": 11000},
+        {"rate": 0.12, "min": 11000, "max": 44725},
+        {"rate": 0.22, "min": 44725, "max": 95375},
+        {"rate": 0.24, "min": 95375, "max": 182100},
+        {"rate": 0.32, "min": 182100, "max": 231250},
+        {"rate": 0.35, "min": 231250, "max": 578125},
+        {"rate": 0.37, "min": 578125, "max": 999999999}
+      ],
+      "MarriedFilingJointly": [
+        {"rate": 0.10, "min": 0, "max": 22000},
+        {"rate": 0.12, "min": 22000, "max": 89450},
+        {"rate": 0.22, "min": 89450, "max": 190750},
+        {"rate": 0.24, "min": 190750, "max": 364200},
+        {"rate": 0.32, "min": 364200, "max": 462500},
+        {"rate": 0.35, "min": 462500, "max": 693750},
+        {"rate": 0.37, "min": 693750, "max": 999999999}
+      ],
+      "MarriedFilingSeparately": [
+        {"rate": 0.10, "min": 0, "max": 11000},
+        {"rate": 0.12, "min": 11000, "max": 44725},
+        {"rate": 0.22, "min": 44725, "max": 95375},
+        {"rate": 0.24, "min": 95375, "max": 182100},
+        {"rate": 0.32, "min": 182100, "max": 231250},
+        {"rate": 0.35, "min": 231250, "max": 346875},
+        {"rate": 0.37, "min": 346875, "max": 999999999}
+      ],
+      "HeadOfHousehold": [
+        {"rate": 0.10, "min": 0, "max": 15700},
+        {"rate": 0.12, "min": 15700, "max": 59850},
+        {"rate": 0.22, "min": 59850, "max": 95350},
+        {"rate": 0.24, "min": 95350, "max": 182050},
+        {"rate": 0.32, "min": 182050, "max": 231250},
+        {"rate": 0.35, "min": 231250, "max": 609350},
+        {"rate": 0.37, "min": 609350, "max": 999999999}
+      ],
+      "QualifyingWidow(er)": [
+        {"rate": 0.10, "min": 0, "max": 22000},
+        {"rate": 0.12, "min": 22000, "max": 89450},
+        {"rate": 0.22, "min": 89450, "max": 190750},
+        {"rate": 0.24, "min": 190750, "max": 364200},
+        {"rate": 0.32, "min": 364200, "max": 462500},
+        {"rate": 0.35, "min": 462500, "max": 693750},
+        {"rate": 0.37, "min": 693750, "max": 999999999}
+      ]
+    },
+    "standardDeduction": {
+      "Single": 14600,
+      "MarriedFilingJointly": 29200,
+      "MarriedFilingSeparately": 14600,
+      "HeadOfHousehold": 21900,
+      "QualifyingWidow(er)": 29200
+    },
+    "additionalStandardDeduction": {
+      "age65OrOlder": {
+        "Single": 1850,
+        "MarriedFilingJointly": 1500,
+        "MarriedFilingSeparately": 1850,
+        "HeadOfHousehold": 1850,
+        "QualifyingWidow(er)": 1500
+      },
+      "blind": {
+        "Single": 1850,
+        "MarriedFilingJointly": 1500,
+        "MarriedFilingSeparately": 1850,
+        "HeadOfHousehold": 1850,
+        "QualifyingWidow(er)": 1500
+      }
+    },
+    "socialSecurityTaxabilityThresholds": {
+      "Single": {
+        "tier1": 25000,
+        "tier2": 34000
+      },
+      "MarriedFilingJointly": {
+        "tier1": 32000,
+        "tier2": 44000
+      },
+      "MarriedFilingSeparately": {
+        "tier1": 0,
+        "tier2": 0
+      },
+      "HeadOfHousehold": {
+        "tier1": 25000,
+        "tier2": 34000
+      },
+      "QualifyingWidow(er)": {
+        "tier1": 25000,
+        "tier2": 34000
+      }
+    }
+  },
+  "stateTax": {
+    "states": {
+      "Alabama": {
+        "abbreviation": "AL",
+        "hasStateTax": true,
+        "federalPensionTax": "exempt",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 4.0,
+        "notes": "Federal retirement benefits are exempt"
+      },
+      "Alaska": {
+        "abbreviation": "AK",
+        "hasStateTax": false,
+        "federalPensionTax": "exempt",
+        "tspTax": "exempt",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 0.0,
+        "notes": "No state income tax"
+      },
+      "Arizona": {
+        "abbreviation": "AZ",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 4.5,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Arkansas": {
+        "abbreviation": "AR",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 5.5,
+        "notes": "Social Security benefits are exempt"
+      },
+      "California": {
+        "abbreviation": "CA",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 8.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Colorado": {
+        "abbreviation": "CO",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 4.4,
+        "notes": "Pension income over $24,000 is taxed"
+      },
+      "Connecticut": {
+        "abbreviation": "CT",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 6.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Delaware": {
+        "abbreviation": "DE",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 5.5,
+        "notes": "First $12,500 of pension income is exempt"
+      },
+      "Florida": {
+        "abbreviation": "FL",
+        "hasStateTax": false,
+        "federalPensionTax": "exempt",
+        "tspTax": "exempt",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 0.0,
+        "notes": "No state income tax"
+      },
+      "Georgia": {
+        "abbreviation": "GA",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 5.0,
+        "notes": "Up to $65,000 of retirement income is exempt for those 65+"
+      },
+      "Hawaii": {
+        "abbreviation": "HI",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 7.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Idaho": {
+        "abbreviation": "ID",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 6.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Illinois": {
+        "abbreviation": "IL",
+        "hasStateTax": true,
+        "federalPensionTax": "exempt",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 3.0,
+        "notes": "Pension income is exempt, TSP withdrawals are taxed"
+      },
+      "Indiana": {
+        "abbreviation": "IN",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 3.23,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Iowa": {
+        "abbreviation": "IA",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 6.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Kansas": {
+        "abbreviation": "KS",
+        "hasStateTax": true,
+        "federalPensionTax": "exempt",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 5.0,
+        "notes": "Federal pension income is exempt"
+      },
+      "Kentucky": {
+        "abbreviation": "KY",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 5.0,
+        "notes": "First $31,110 of pension income is exempt"
+      },
+      "Louisiana": {
+        "abbreviation": "LA",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 4.25,
+        "notes": "Up to $6,000 of pension income is exempt"
+      },
+      "Maine": {
+        "abbreviation": "ME",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 7.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Maryland": {
+        "abbreviation": "MD",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 5.0,
+        "notes": "Up to $36,200 of pension income is exempt"
+      },
+      "Massachusetts": {
+        "abbreviation": "MA",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 5.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Michigan": {
+        "abbreviation": "MI",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 4.25,
+        "notes": "Pension income may be partially exempt based on age"
+      },
+      "Minnesota": {
+        "abbreviation": "MN",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "partial",
+        "effectiveRate": 7.0,
+        "notes": "Some Social Security benefits may be taxed"
+      },
+      "Mississippi": {
+        "abbreviation": "MS",
+        "hasStateTax": true,
+        "federalPensionTax": "exempt",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 4.0,
+        "notes": "Federal pension income is exempt"
+      },
+      "Missouri": {
+        "abbreviation": "MO",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 5.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Montana": {
+        "abbreviation": "MT",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 6.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Nebraska": {
+        "abbreviation": "NE",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "partial",
+        "effectiveRate": 6.0,
+        "notes": "Some Social Security benefits may be taxed"
+      },
+      "Nevada": {
+        "abbreviation": "NV",
+        "hasStateTax": false,
+        "federalPensionTax": "exempt",
+        "tspTax": "exempt",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 0.0,
+        "notes": "No state income tax"
+      },
+      "New Hampshire": {
+        "abbreviation": "NH",
+        "hasStateTax": false,
+        "federalPensionTax": "exempt",
+        "tspTax": "exempt",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 0.0,
+        "notes": "No state income tax on wages or pensions"
+      },
+      "New Jersey": {
+        "abbreviation": "NJ",
+        "hasStateTax": true,
+        "federalPensionTax": "exempt",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 6.0,
+        "notes": "Federal pension income is exempt"
+      },
+      "New Mexico": {
+        "abbreviation": "NM",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 5.0,
+        "notes": "Up to $8,000 of pension income is exempt"
+      },
+      "New York": {
+        "abbreviation": "NY",
+        "hasStateTax": true,
+        "federalPensionTax": "exempt",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 6.5,
+        "notes": "Federal pension income is exempt"
+      },
+      "North Carolina": {
+        "abbreviation": "NC",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 4.75,
+        "notes": "Up to $4,000 of pension income is exempt"
+      },
+      "North Dakota": {
+        "abbreviation": "ND",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 2.5,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Ohio": {
+        "abbreviation": "OH",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 3.5,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Oklahoma": {
+        "abbreviation": "OK",
+        "hasStateTax": true,
+        "federalPensionTax": "exempt",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 4.0,
+        "notes": "Federal pension income is exempt"
+      },
+      "Oregon": {
+        "abbreviation": "OR",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 8.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Pennsylvania": {
+        "abbreviation": "PA",
+        "hasStateTax": true,
+        "federalPensionTax": "exempt",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 3.07,
+        "notes": "Pension income is exempt"
+      },
+      "Rhode Island": {
+        "abbreviation": "RI",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 5.5,
+        "notes": "Social Security benefits are exempt"
+      },
+      "South Carolina": {
+        "abbreviation": "SC",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 6.0,
+        "notes": "Up to $3,000 of pension income is exempt"
+      },
+      "South Dakota": {
+        "abbreviation": "SD",
+        "hasStateTax": false,
+        "federalPensionTax": "exempt",
+        "tspTax": "exempt",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 0.0,
+        "notes": "No state income tax"
+      },
+      "Tennessee": {
+        "abbreviation": "TN",
+        "hasStateTax": false,
+        "federalPensionTax": "exempt",
+        "tspTax": "exempt",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 0.0,
+        "notes": "No state income tax"
+      },
+      "Texas": {
+        "abbreviation": "TX",
+        "hasStateTax": false,
+        "federalPensionTax": "exempt",
+        "tspTax": "exempt",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 0.0,
+        "notes": "No state income tax"
+      },
+      "Utah": {
+        "abbreviation": "UT",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 4.85,
+        "notes": "Retirement income credit available"
+      },
+      "Vermont": {
+        "abbreviation": "VT",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 6.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Virginia": {
+        "abbreviation": "VA",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 5.75,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Washington": {
+        "abbreviation": "WA",
+        "hasStateTax": false,
+        "federalPensionTax": "exempt",
+        "tspTax": "exempt",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 0.0,
+        "notes": "No state income tax"
+      },
+      "West Virginia": {
+        "abbreviation": "WV",
+        "hasStateTax": true,
+        "federalPensionTax": "partial",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 6.0,
+        "notes": "Up to $8,000 of pension income is exempt"
+      },
+      "Wisconsin": {
+        "abbreviation": "WI",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 6.0,
+        "notes": "Social Security benefits are exempt"
+      },
+      "Wyoming": {
+        "abbreviation": "WY",
+        "hasStateTax": false,
+        "federalPensionTax": "exempt",
+        "tspTax": "exempt",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 0.0,
+        "notes": "No state income tax"
+      },
+      "District of Columbia": {
+        "abbreviation": "DC",
+        "hasStateTax": true,
+        "federalPensionTax": "taxed",
+        "tspTax": "taxed",
+        "socialSecurityTax": "exempt",
+        "effectiveRate": 8.5,
+        "notes": "Social Security benefits are exempt"
+      }
+    }
+  }
+}
